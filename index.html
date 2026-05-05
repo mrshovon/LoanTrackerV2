@@ -1,0 +1,1073 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Loan Tracker - Manage Your Loans</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
+    <!-- Chart.js for visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/styles.css" />
+
+    <!-- Firebase Initialization -->
+    <script>
+      // Firebase configuration
+      const firebaseConfig = {
+        apiKey: "AIzaSyAwI1Zj29burIY6j8BmdBshfvHfAeEG0nA",
+        authDomain: "loantracker-35688.firebaseapp.com",
+        databaseURL:
+          "https://loantracker-35688-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "loantracker-35688",
+        storageBucket: "loantracker-35688.firebasestorage.app",
+        messagingSenderId: "805961828393",
+        appId: "1:805961828393:web:49ddfdb7f0521edc0b7438",
+      };
+
+      // Initialize Firebase
+      firebase.initializeApp(firebaseConfig);
+      const database = firebase.database();
+    </script>
+
+    <!-- Tailwind Config -->
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: {
+                50: "#eff6ff",
+                500: "#3b82f6",
+                600: "#2563eb",
+                700: "#1d4ed8",
+              },
+              success: {
+                50: "#f0fdf4",
+                500: "#10b981",
+                600: "#059669",
+              },
+              warning: {
+                50: "#fffbeb",
+                500: "#f59e0b",
+                600: "#d97706",
+              },
+              danger: {
+                50: "#fef2f2",
+                500: "#ef4444",
+                600: "#dc2626",
+              },
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body class="bg-gray-50 dark:bg-gray-900">
+    <!-- Authentication Page -->
+    <div id="authPage" class="min-h-screen flex items-center justify-center">
+      <div class="w-full max-w-md">
+        <div class="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-8">
+          <div class="text-center mb-8">
+            <div
+              class="inline-flex items-center justify-center w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full mb-4"
+            >
+              <i
+                data-lucide="building"
+                class="w-8 h-8 text-blue-600 dark:text-blue-400"
+              ></i>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+              Loan Tracker
+            </h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-2">
+              Manage your loans efficiently
+            </p>
+          </div>
+
+          <!-- Login Form -->
+          <div id="loginForm" class="space-y-6">
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                >Email</label
+              >
+              <input
+                type="email"
+                id="loginEmail"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                placeholder="Enter your email"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                >Password</label
+              >
+              <div class="relative">
+                <input
+                  type="password"
+                  id="loginPassword"
+                  class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  placeholder="Enter your password"
+                />
+                <button
+                  type="button"
+                  id="toggleLoginPassword"
+                  class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  <i data-lucide="eye" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+            <button
+              id="loginBtn"
+              class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200"
+            >
+              Sign In
+            </button>
+            <div
+              id="loginError"
+              class="hidden p-3 bg-red-50 border border-red-200 rounded-md"
+            >
+              <p class="text-sm text-red-600"></p>
+            </div>
+          </div>
+
+          <!-- Signup Form -->
+          <div id="signupForm" class="space-y-6 hidden">
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                >Name</label
+              >
+              <input
+                type="text"
+                id="signupName"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                placeholder="Enter your name"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                >Email</label
+              >
+              <input
+                type="email"
+                id="signupEmail"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                placeholder="Enter your email"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                >Password</label
+              >
+              <div class="relative">
+                <input
+                  type="password"
+                  id="signupPassword"
+                  class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  placeholder="Enter your password"
+                />
+                <button
+                  type="button"
+                  id="toggleSignupPassword"
+                  class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  <i data-lucide="eye" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+            <button
+              id="signupBtn"
+              class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200"
+            >
+              Create Account
+            </button>
+            <div
+              id="signupError"
+              class="hidden p-3 bg-red-50 border border-red-200 rounded-md"
+            >
+              <p class="text-sm text-red-600"></p>
+            </div>
+          </div>
+
+          <!-- Toggle between forms -->
+          <div class="mt-6 text-center">
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+              <span id="formToggleText">Don't have an account?</span>
+              <button
+                id="formToggleBtn"
+                class="text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Create Account
+              </button>
+            </p>
+          </div>
+
+          <!-- Demo credentials -->
+          <div class="mt-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-md">
+            <p class="text-xs text-gray-500 dark:text-gray-400 text-center">
+              <strong>Demo Credentials:</strong><br />
+              Email: demo@example.com<br />
+              Password: demo123
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="mainApp" class="hidden min-h-screen flex">
+      <!-- Sidebar -->
+      <aside
+        id="sidebar"
+        class="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 -translate-x-full fixed lg:relative h-full z-40"
+      >
+        <div class="flex flex-col h-full">
+          <!-- Sidebar Header -->
+          <div
+            class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700"
+          >
+            <div class="flex items-center space-x-2">
+              <div class="p-2 bg-blue-100 dark:bg-blue-900 rounded-full">
+                <i
+                  data-lucide="building"
+                  class="w-5 h-5 text-blue-600 dark:text-blue-400"
+                ></i>
+              </div>
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                Loan Tracker
+              </h2>
+            </div>
+            <button
+              id="closeSidebar"
+              class="lg:hidden p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+            >
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+
+          <!-- Navigation -->
+          <nav class="flex-1 px-4 py-6 space-y-2">
+            <button
+              class="nav-item w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+              data-page="dashboard"
+            >
+              <i data-lucide="home" class="w-5 h-5 mr-3"></i>
+              Dashboard
+            </button>
+            <button
+              class="nav-item w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              data-page="personal"
+            >
+              <i data-lucide="user" class="w-5 h-5 mr-3"></i>
+              Personal Loans
+            </button>
+            <button
+              class="nav-item w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              data-page="credit"
+            >
+              <i data-lucide="credit-card" class="w-5 h-5 mr-3"></i>
+              Credit Cards
+            </button>
+            <button
+              class="nav-item w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              data-page="bank"
+            >
+              <i data-lucide="building" class="w-5 h-5 mr-3"></i>
+              Bank Loans
+            </button>
+            <button
+              class="nav-item w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              data-page="charts"
+            >
+              <i data-lucide="pie-chart" class="w-5 h-5 mr-3"></i>
+              Analytics
+            </button>
+            <button
+              class="nav-item w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              data-page="history"
+            >
+              <i data-lucide="history" class="w-5 h-5 mr-3"></i>
+              History
+            </button>
+          </nav>
+
+          <!-- User Section -->
+          <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between mb-3">
+              <span
+                class="text-sm text-gray-600 dark:text-gray-400 truncate"
+                id="userEmail"
+              ></span>
+              <button
+                id="darkModeToggle"
+                class="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+              >
+                <i data-lucide="moon" class="w-4 h-4"></i>
+              </button>
+            </div>
+            <button
+              id="logoutBtn"
+              class="w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+            >
+              <i data-lucide="log-out" class="w-5 h-5 mr-3"></i>
+              Logout
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Mobile Overlay -->
+      <div
+        id="sidebarOverlay"
+        class="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden hidden"
+      ></div>
+
+      <!-- Main Content -->
+      <main class="flex-1 overflow-auto">
+        <!-- Top Bar for Mobile -->
+        <header
+          class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 lg:hidden"
+        >
+          <div class="flex items-center justify-between px-4 py-3">
+            <button
+              id="openSidebar"
+              class="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+            >
+              <i data-lucide="menu" class="w-6 h-6"></i>
+            </button>
+            <h1 class="text-lg font-semibold text-gray-900 dark:text-white">
+              Loan Tracker
+            </h1>
+            <div class="w-10"></div>
+          </div>
+        </header>
+
+        <!-- Toast Notifications Container -->
+        <div
+          id="toastContainer"
+          class="fixed top-4 right-4 z-50 space-y-2"
+        ></div>
+
+        <!-- Content Area -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div id="content">
+            <!-- Content will be loaded here -->
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Modals -->
+    <!-- Personal Loan Modal -->
+    <div
+      id="personalLoanModal"
+      class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+      >
+        <div class="p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+              Add Personal Loan
+            </h3>
+            <button
+              onclick="closePersonalLoanModal()"
+              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+          <form id="personalLoanForm" class="space-y-4">
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Person Name</label
+              >
+              <input
+                type="text"
+                id="personName"
+                required
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Total Loan Amount ($)</label
+              >
+              <input
+                type="number"
+                id="totalLoanAmount"
+                required
+                min="0"
+                step="0.01"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Amount Paid ($)</label
+              >
+              <input
+                type="number"
+                id="amountPaid"
+                required
+                min="0"
+                step="0.01"
+                value="0"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div class="flex space-x-3 pt-4">
+              <button
+                type="submit"
+                class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+              >
+                Add Loan
+              </button>
+              <button
+                type="button"
+                onclick="closePersonalLoanModal()"
+                class="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Credit Card Modal -->
+    <div
+      id="creditCardModal"
+      class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+      >
+        <div class="p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+              Add Credit Card
+            </h3>
+            <button
+              onclick="closeCreditCardModal()"
+              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+          <form id="creditCardForm" class="space-y-4">
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Card Name</label
+              >
+              <input
+                type="text"
+                id="cardName"
+                required
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Credit Limit ($)</label
+              >
+              <input
+                type="number"
+                id="creditLimit"
+                required
+                min="0"
+                step="0.01"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Current Outstanding ($)</label
+              >
+              <input
+                type="number"
+                id="currentOutstanding"
+                required
+                min="0"
+                step="0.01"
+                value="0"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div class="flex space-x-3 pt-4">
+              <button
+                type="submit"
+                class="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700"
+              >
+                Add Card
+              </button>
+              <button
+                type="button"
+                onclick="closeCreditCardModal()"
+                class="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bank Loan Modal -->
+    <div
+      id="bankLoanModal"
+      class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+      >
+        <div class="p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+              Add Bank Loan
+            </h3>
+            <button
+              onclick="closeBankLoanModal()"
+              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+          <form id="bankLoanForm" class="space-y-4">
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Bank Name</label
+              >
+              <input
+                type="text"
+                id="bankName"
+                required
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Principal Amount ($)</label
+              >
+              <input
+                type="number"
+                id="principalAmount"
+                required
+                min="0"
+                step="0.01"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Annual Interest Rate (%)</label
+              >
+              <input
+                type="number"
+                id="annualInterestRate"
+                required
+                min="0"
+                step="0.1"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Tenure (months)</label
+              >
+              <input
+                type="number"
+                id="tenureMonths"
+                required
+                min="1"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Start Date</label
+              >
+              <input
+                type="date"
+                id="startDate"
+                required
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Total Paid ($)</label
+              >
+              <input
+                type="number"
+                id="totalPaid"
+                required
+                min="0"
+                step="0.01"
+                value="0"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div class="flex space-x-3 pt-4">
+              <button
+                type="submit"
+                class="flex-1 bg-orange-600 text-white py-2 px-4 rounded-md hover:bg-orange-700"
+              >
+                Add Loan
+              </button>
+              <button
+                type="button"
+                onclick="closeBankLoanModal()"
+                class="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div
+      id="confirmModal"
+      class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full"
+      >
+        <div class="p-6">
+          <div class="flex items-center mb-4">
+            <div class="p-3 bg-red-100 dark:bg-red-900 rounded-full mr-4">
+              <i
+                data-lucide="alert-triangle"
+                class="w-6 h-6 text-red-600 dark:text-red-400"
+              ></i>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+              Confirm Action
+            </h3>
+          </div>
+          <p
+            id="confirmMessage"
+            class="text-gray-600 dark:text-gray-300 mb-6"
+          ></p>
+          <div class="flex space-x-3">
+            <button
+              id="confirmBtn"
+              class="flex-1 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700"
+            >
+              Confirm
+            </button>
+            <button
+              id="cancelBtn"
+              class="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div
+      id="paymentModal"
+      class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full"
+      >
+        <div class="p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+              Make Payment
+            </h3>
+            <button
+              onclick="closePaymentModal()"
+              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+          <div class="space-y-4">
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Payment Amount ($)</label
+              >
+              <input
+                type="number"
+                id="paymentAmount"
+                required
+                min="0"
+                step="0.01"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div
+              id="paymentInfo"
+              class="text-sm text-gray-600 dark:text-gray-300"
+            ></div>
+            <div class="flex space-x-3">
+              <button
+                id="submitPaymentBtn"
+                class="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700"
+              >
+                Pay Now
+              </button>
+              <button
+                onclick="closePaymentModal()"
+                class="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Personal Loan Modal -->
+    <div
+      id="editPersonalLoanModal"
+      class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+      >
+        <div class="p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+              Edit Personal Loan
+            </h3>
+            <button
+              onclick="closeEditPersonalLoanModal()"
+              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+          <form id="editPersonalLoanForm" class="space-y-4">
+            <input type="hidden" id="editPersonalLoanId" />
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Person Name</label
+              >
+              <input
+                type="text"
+                id="editPersonName"
+                required
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Total Loan Amount ($)</label
+              >
+              <input
+                type="number"
+                id="editTotalLoanAmount"
+                required
+                min="0"
+                step="0.01"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Amount Paid ($)</label
+              >
+              <input
+                type="number"
+                id="editAmountPaid"
+                required
+                min="0"
+                step="0.01"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div class="flex space-x-3 pt-4">
+              <button
+                type="submit"
+                class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+              >
+                Update Loan
+              </button>
+              <button
+                type="button"
+                onclick="closeEditPersonalLoanModal()"
+                class="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Credit Card Modal -->
+    <div
+      id="editCreditCardModal"
+      class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+      >
+        <div class="p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+              Edit Credit Card
+            </h3>
+            <button
+              onclick="closeEditCreditCardModal()"
+              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+          <form id="editCreditCardForm" class="space-y-4">
+            <input type="hidden" id="editCreditCardId" />
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Card Name</label
+              >
+              <input
+                type="text"
+                id="editCardName"
+                required
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Credit Limit ($)</label
+              >
+              <input
+                type="number"
+                id="editCreditLimit"
+                required
+                min="0"
+                step="0.01"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Current Outstanding ($)</label
+              >
+              <input
+                type="number"
+                id="editCurrentOutstanding"
+                required
+                min="0"
+                step="0.01"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div class="flex space-x-3 pt-4">
+              <button
+                type="submit"
+                class="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700"
+              >
+                Update Card
+              </button>
+              <button
+                type="button"
+                onclick="closeEditCreditCardModal()"
+                class="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Bank Loan Modal -->
+    <div
+      id="editBankLoanModal"
+      class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+      >
+        <div class="p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+              Edit Bank Loan
+            </h3>
+            <button
+              onclick="closeEditBankLoanModal()"
+              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+          <form id="editBankLoanForm" class="space-y-4">
+            <input type="hidden" id="editBankLoanId" />
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Bank Name</label
+              >
+              <input
+                type="text"
+                id="editBankName"
+                required
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Principal Amount ($)</label
+              >
+              <input
+                type="number"
+                id="editPrincipalAmount"
+                required
+                min="0"
+                step="0.01"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Annual Interest Rate (%)</label
+              >
+              <input
+                type="number"
+                id="editAnnualInterestRate"
+                required
+                min="0"
+                step="0.1"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Tenure (months)</label
+              >
+              <input
+                type="number"
+                id="editTenureMonths"
+                required
+                min="1"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Total Paid ($)</label
+              >
+              <input
+                type="number"
+                id="editTotalPaid"
+                required
+                min="0"
+                step="0.01"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div class="flex space-x-3 pt-4">
+              <button
+                type="submit"
+                class="flex-1 bg-orange-600 text-white py-2 px-4 rounded-md hover:bg-orange-700"
+              >
+                Update Loan
+              </button>
+              <button
+                type="button"
+                onclick="closeEditBankLoanModal()"
+                class="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- History Modal -->
+    <div
+      id="historyModal"
+      class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+      >
+        <div class="p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+              Transaction History
+            </h3>
+            <button
+              onclick="closeHistoryModal()"
+              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+          <div id="historyContent">
+            <!-- History content will be loaded here -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/app.js"></script>
+    <script>
+      // Initialize Lucide icons
+      lucide.createIcons();
+    </script>
+  </body>
+</html>
