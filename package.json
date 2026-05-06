@@ -7,10 +7,17 @@
     "start": "node server.js",
     "dev": "node server.js"
   },
-  "keywords": ["loan", "tracker", "finance", "html", "css", "jquery"],
+  "keywords": [
+    "loan",
+    "tracker",
+    "finance",
+    "html",
+    "css",
+    "jquery"
+  ],
   "author": "Loan Tracker Team",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2"
+    "express": "^4.22.1"
   }
 }

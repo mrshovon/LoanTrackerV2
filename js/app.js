@@ -1,10 +1,10 @@
-// Loan Tracker Application - jQuery Implementation with Firebase
+// Loan Tracker Application - Core Logic
 $(document).ready(function() {
     // Initialize Lucide icons
     lucide.createIcons();
     
     // Application State
-    const app = {
+    window.app = {
         currentUser: null,
         darkMode: false,
         currentPage: 'dashboard',
@@ -15,78 +15,6 @@ $(document).ready(function() {
         },
         transactions: []
     };
-    
-    // Toast Notification System
-    function showToast(message, type = 'success') {
-        const toastContainer = $('#toastContainer');
-        const toastId = 'toast-' + Date.now();
-        
-        const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : type === 'warning' ? 'bg-orange-500' : 'bg-blue-500';
-        const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : type === 'warning' ? 'alert-triangle' : 'info';
-        
-        const toast = $(`
-            <div id="${toastId}" class="${bgColor} text-white px-4 py-3 rounded-lg shadow-lg flex items-center space-x-2 min-w-[250px] transform translate-x-full transition-transform duration-300">
-                <i data-lucide="${icon}" class="w-5 h-5 flex-shrink-0"></i>
-                <span class="text-sm font-medium">${message}</span>
-            </div>
-        `);
-        
-        toastContainer.append(toast);
-        lucide.createIcons();
-        
-        // Animate in
-        setTimeout(() => {
-            toast.removeClass('translate-x-full');
-        }, 100);
-        
-        // Auto remove after 3 seconds
-        setTimeout(() => {
-            toast.addClass('translate-x-full');
-            setTimeout(() => {
-                toast.remove();
-            }, 300);
-        }, 3000);
-    }
-    
-    // Modern Confirmation Dialog
-    function showConfirmDialog(message, onConfirm) {
-        $('#confirmMessage').text(message);
-        $('#confirmModal').removeClass('hidden');
-        
-        $('#confirmBtn').off('click').on('click', function() {
-            $('#confirmModal').addClass('hidden');
-            onConfirm();
-        });
-        
-        $('#cancelBtn').off('click').on('click', function() {
-            $('#confirmModal').addClass('hidden');
-        });
-    }
-    
-    // Modern Payment Dialog
-    function showPaymentDialog(title, maxAmount, onConfirm) {
-        $('#paymentModal #paymentAmount').val('');
-        $('#paymentModal #paymentInfo').text(title);
-        $('#paymentModal').removeClass('hidden');
-        
-        $('#submitPaymentBtn').off('click').on('click', function() {
-            const amount = parseFloat($('#paymentAmount').val());
-            if (!amount || amount <= 0) {
-                showToast('Please enter a valid payment amount', 'error');
-                return;
-            }
-            if (amount > maxAmount) {
-                showToast(`Maximum payment amount is $${maxAmount.toLocaleString()}`, 'error');
-                return;
-            }
-            $('#paymentModal').addClass('hidden');
-            onConfirm(amount);
-        });
-    }
-    
-    window.showToast = showToast;
-    window.showConfirmDialog = showConfirmDialog;
-    window.showPaymentDialog = showPaymentDialog;
     
     // Initialize application
     function init() {
@@ -255,419 +183,21 @@ $(document).ready(function() {
     function loadDarkMode() {
         const darkMode = localStorage.getItem('darkMode') === 'true';
         app.darkMode = darkMode;
-        updateDarkMode();
+        if (window.updateDarkMode) {
+            window.updateDarkMode();
+        }
     }
     
     function toggleDarkMode() {
         app.darkMode = !app.darkMode;
         localStorage.setItem('darkMode', app.darkMode);
-        updateDarkMode();
-    }
-    
-    function updateDarkMode() {
-        if (app.darkMode) {
-            $('html').addClass('dark');
-            $('#darkModeToggle i').attr('data-lucide', 'sun');
-        } else {
-            $('html').removeClass('dark');
-            $('#darkModeToggle i').attr('data-lucide', 'moon');
-        }
-        lucide.createIcons();
-    }
-    
-    // Navigation functions
-    function navigateTo(page) {
-        app.currentPage = page;
-        updateNavigation();
-        loadPage(page);
-        closeSidebarOnMobile();
-    }
-    
-    function updateNavigation() {
-        $('.nav-item').removeClass('bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300')
-            .addClass('text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700');
-        
-        $(`.nav-item[data-page="${app.currentPage}"]`).removeClass('text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700')
-            .addClass('bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300');
-    }
-    
-    // Sidebar functions
-    function openSidebar() {
-        $('#sidebar').removeClass('-translate-x-full');
-        $('#sidebarOverlay').removeClass('hidden');
-    }
-    
-    function closeSidebar() {
-        $('#sidebar').addClass('-translate-x-full');
-        $('#sidebarOverlay').addClass('hidden');
-    }
-    
-    function closeSidebarOnMobile() {
-        if ($(window).width() < 1024) {
-            closeSidebar();
+        if (window.updateDarkMode) {
+            window.updateDarkMode();
         }
     }
     
-    function toggleSidebar() {
-        if ($('#sidebar').hasClass('-translate-x-full')) {
-            openSidebar();
-        } else {
-            closeSidebar();
-        }
-    }
     
-    function loadPage(page) {
-        const $content = $('#content');
-        $content.empty().addClass('fade-in');
-        
-        switch(page) {
-            case 'dashboard':
-                loadDashboard();
-                break;
-            case 'personal':
-                loadPersonalLoans();
-                break;
-            case 'credit':
-                loadCreditCards();
-                break;
-            case 'bank':
-                loadBankLoans();
-                break;
-            case 'charts':
-                loadCharts();
-                break;
-            case 'history':
-                loadHistory();
-                break;
-        }
-    }
     
-    // Page loading functions
-    function loadDashboard() {
-        const html = `
-            <div class="space-y-6">
-                <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-                
-                <!-- Summary Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow card-hover">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Debt</p>
-                                <p class="text-2xl font-bold text-gray-900 dark:text-white">$${calculateTotalDebt().toLocaleString()}</p>
-                            </div>
-                            <div class="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
-                                <i data-lucide="dollar-sign" class="w-6 h-6 text-blue-600 dark:text-blue-400"></i>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow card-hover">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Personal Loans</p>
-                                <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">$${calculatePersonalLoansTotal().toLocaleString()}</p>
-                            </div>
-                            <div class="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
-                                <i data-lucide="user" class="w-6 h-6 text-blue-600 dark:text-blue-400"></i>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow card-hover">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Credit Cards</p>
-                                <p class="text-2xl font-bold text-green-600 dark:text-green-400">$${calculateCreditCardsTotal().toLocaleString()}</p>
-                            </div>
-                            <div class="p-3 bg-green-100 dark:bg-green-900 rounded-full">
-                                <i data-lucide="credit-card" class="w-6 h-6 text-green-600 dark:text-green-400"></i>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow card-hover">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Bank Loans</p>
-                                <p class="text-2xl font-bold text-orange-600 dark:text-orange-400">$${calculateBankLoansTotal().toLocaleString()}</p>
-                            </div>
-                            <div class="p-3 bg-orange-100 dark:bg-orange-900 rounded-full">
-                                <i data-lucide="building" class="w-6 h-6 text-orange-600 dark:text-orange-400"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Quick Actions -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <button class="btn bg-blue-600 text-white p-4 rounded-lg hover:bg-blue-700" onclick="navigateTo('personal')">
-                            <i data-lucide="user-plus" class="w-6 h-6 mb-2"></i>
-                            <p>Add Personal Loan</p>
-                        </button>
-                        <button class="btn bg-green-600 text-white p-4 rounded-lg hover:bg-green-700" onclick="navigateTo('credit')">
-                            <i data-lucide="credit-card" class="w-6 h-6 mb-2"></i>
-                            <p>Add Credit Card</p>
-                        </button>
-                        <button class="btn bg-orange-600 text-white p-4 rounded-lg hover:bg-orange-700" onclick="navigateTo('bank')">
-                            <i data-lucide="building" class="w-6 h-6 mb-2"></i>
-                            <p>Add Bank Loan</p>
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Recent Transactions -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Recent Transactions</h2>
-                    <div class="space-y-3">
-                        ${getRecentTransactions().map(t => `
-                            <div class="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
-                                <div class="flex items-center space-x-3">
-                                    <div class="p-2 ${t.type === 'payment' ? 'bg-green-100' : 'bg-red-100'} rounded-full">
-                                        <i data-lucide="${t.type === 'payment' ? 'arrow-down' : 'arrow-up'}" class="w-4 h-4 ${t.type === 'payment' ? 'text-green-600' : 'text-red-600'}"></i>
-                                    </div>
-                                    <div>
-                                        <p class="font-medium text-gray-900 dark:text-white">${t.description}</p>
-                                        <p class="text-sm text-gray-500 dark:text-gray-400">${t.category}</p>
-                                    </div>
-                                </div>
-                                <div class="text-right">
-                                    <p class="font-semibold ${t.type === 'payment' ? 'text-green-600' : 'text-red-600'}">
-                                        ${t.type === 'payment' ? '-' : '+'}$${t.amount.toLocaleString()}
-                                    </p>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        $('#content').html(html);
-        lucide.createIcons();
-    }
-    
-    function loadPersonalLoans() {
-        const html = `
-            <div class="space-y-6">
-                <div class="flex justify-between items-center">
-                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Personal Loans</h1>
-                    <button class="btn bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" onclick="showAddPersonalLoanModal()">
-                        <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
-                        Add Personal Loan
-                    </button>
-                </div>
-                
-                <!-- Summary Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Loans</p>
-                        <p class="text-2xl font-bold text-gray-900 dark:text-white">${app.loans.personal.length}</p>
-                    </div>
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Amount</p>
-                        <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">$${calculatePersonalLoansTotal().toLocaleString()}</p>
-                    </div>
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Paid</p>
-                        <p class="text-2xl font-bold text-green-600 dark:text-green-400">$${calculatePersonalLoansPaid().toLocaleString()}</p>
-                    </div>
-                </div>
-                
-                <!-- Loans List -->
-                <div class="space-y-4">
-                    ${app.loans.personal.map(loan => `
-                        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow card-hover">
-                            <div class="flex justify-between items-start mb-4">
-                                <div>
-                                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${loan.personName}</h3>
-                                    <p class="text-sm text-gray-500 dark:text-gray-400">Created: ${new Date(loan.createdAt).toLocaleDateString()}</p>
-                                </div>
-                                <div class="flex space-x-2">
-                                    <button class="btn text-blue-600 hover:text-blue-800" onclick="editPersonalLoan('${loan.id}')">
-                                        <i data-lucide="edit" class="w-4 h-4"></i>
-                                    </button>
-                                    <button class="btn text-purple-600 hover:text-purple-800" onclick="showLoanHistory('personal', '${loan.id}', '${loan.personName}')">
-                                        <i data-lucide="history" class="w-4 h-4"></i>
-                                    </button>
-                                    <button class="btn text-red-600 hover:text-red-800" onclick="deletePersonalLoan('${loan.id}')">
-                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                                <div>
-                                    <p class="text-sm text-gray-600 dark:text-gray-400">Total Loan</p>
-                                    <p class="text-lg font-semibold text-gray-900 dark:text-white">$${loan.totalLoanAmount.toLocaleString()}</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-600 dark:text-gray-400">Amount Paid</p>
-                                    <p class="text-lg font-semibold text-green-600 dark:text-green-400">$${loan.totalPaid.toLocaleString()}</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-600 dark:text-gray-400">Outstanding</p>
-                                    <p class="text-lg font-semibold text-red-600 dark:text-red-400">$${loan.outstandingBalance.toLocaleString()}</p>
-                                </div>
-                            </div>
-                            
-                            <div class="mb-4">
-                                <div class="flex justify-between text-sm mb-1">
-                                    <span class="text-gray-600 dark:text-gray-400">Progress</span>
-                                    <span class="text-gray-600 dark:text-gray-400">${Math.round((loan.totalPaid / loan.totalLoanAmount) * 100)}%</span>
-                                </div>
-                                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                    <div class="bg-blue-600 h-2 rounded-full progress-bar" style="width: ${(loan.totalPaid / loan.totalLoanAmount) * 100}%"></div>
-                                </div>
-                            </div>
-                            
-                            <div class="flex space-x-2">
-                                <button class="btn bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700" onclick="makePersonalLoanPayment('${loan.id}')">
-                                    Make Payment
-                                </button>
-                                <button class="btn bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" onclick="payOffPersonalLoan('${loan.id}')">
-                                    Pay Off Full
-                                </button>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-                
-                ${app.loans.personal.length === 0 ? `
-                    <div class="bg-white dark:bg-gray-800 p-12 rounded-lg shadow text-center">
-                        <i data-lucide="user" class="w-12 h-12 text-gray-400 mx-auto mb-4"></i>
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Personal Loans</h3>
-                        <p class="text-gray-600 dark:text-gray-400 mb-4">You haven't added any personal loans yet.</p>
-                        <button class="btn bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" onclick="showAddPersonalLoanModal()">
-                            Add Your First Personal Loan
-                        </button>
-                    </div>
-                ` : ''}
-            </div>
-        `;
-        
-        $('#content').html(html);
-        lucide.createIcons();
-    }
-    
-    function loadCreditCards() {
-        const creditCards = app.loans && app.loans.credit ? app.loans.credit : [];
-        const html = `
-            <div class="space-y-6">
-                <div class="flex justify-between items-center">
-                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Credit Cards</h1>
-                    <button class="btn bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700" onclick="showAddCreditCardModal()">
-                        <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
-                        Add Credit Card
-                    </button>
-                </div>
-                
-                <!-- Summary Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Cards</p>
-                        <p class="text-2xl font-bold text-gray-900 dark:text-white">${creditCards.length}</p>
-                    </div>
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Credit Limit</p>
-                        <p class="text-2xl font-bold text-green-600 dark:text-green-400">$${calculateCreditCardsLimit().toLocaleString()}</p>
-                    </div>
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Current Outstanding</p>
-                        <p class="text-2xl font-bold text-red-600 dark:text-red-400">$${calculateCreditCardsTotal().toLocaleString()}</p>
-                    </div>
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Available Credit</p>
-                        <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">$${calculateCreditCardsAvailable().toLocaleString()}</p>
-                    </div>
-                </div>
-                
-                <!-- Credit Cards List -->
-                <div class="space-y-4">
-                    ${creditCards.map(card => {
-                        const utilization = (card.currentOutstanding / card.totalCreditLimit) * 100;
-                        const minPayment = card.currentOutstanding * 0.05;
-                        
-                        return `
-                            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow card-hover">
-                                <div class="flex justify-between items-start mb-4">
-                                    <div>
-                                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${card.cardName}</h3>
-                                        <p class="text-sm text-gray-500 dark:text-gray-400">Created: ${new Date(card.createdAt).toLocaleDateString()}</p>
-                                    </div>
-                                    <div class="flex space-x-2">
-                                        <button class="btn text-green-600 hover:text-green-800" onclick="editCreditCard('${card.id}')">
-                                            <i data-lucide="edit" class="w-4 h-4"></i>
-                                        </button>
-                                        <button class="btn text-purple-600 hover:text-purple-800" onclick="showLoanHistory('credit', '${card.id}', '${card.cardName}')">
-                                            <i data-lucide="history" class="w-4 h-4"></i>
-                                        </button>
-                                        <button class="btn text-red-600 hover:text-red-800" onclick="deleteCreditCard('${card.id}')">
-                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                                
-                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                                    <div>
-                                        <p class="text-sm text-gray-600 dark:text-gray-400">Credit Limit</p>
-                                        <p class="text-lg font-semibold text-gray-900 dark:text-white">$${card.totalCreditLimit.toLocaleString()}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-sm text-gray-600 dark:text-gray-400">Outstanding</p>
-                                        <p class="text-lg font-semibold text-red-600 dark:text-red-400">$${card.currentOutstanding.toLocaleString()}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-sm text-gray-600 dark:text-gray-400">Available</p>
-                                        <p class="text-lg font-semibold text-green-600 dark:text-green-400">$${card.availableBalance.toLocaleString()}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-sm text-gray-600 dark:text-gray-400">Min Payment</p>
-                                        <p class="text-lg font-semibold text-orange-600 dark:text-orange-400">$${minPayment.toLocaleString()}</p>
-                                    </div>
-                                </div>
-                                
-                                <div class="mb-4">
-                                    <div class="flex justify-between text-sm mb-1">
-                                        <span class="text-gray-600 dark:text-gray-400">Credit Utilization</span>
-                                        <span class="${utilization > 70 ? 'text-red-600' : utilization > 50 ? 'text-orange-600' : 'text-green-600'}">${utilization.toFixed(1)}%</span>
-                                    </div>
-                                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                        <div class="${utilization > 70 ? 'bg-red-600' : utilization > 50 ? 'bg-orange-600' : 'bg-green-600'} h-2 rounded-full progress-bar" style="width: ${utilization}%"></div>
-                                    </div>
-                                </div>
-                                
-                                <div class="flex space-x-2">
-                                    <button class="btn bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700" onclick="makeCreditCardPayment('${card.id}')">
-                                        Make Payment
-                                    </button>
-                                    <button class="btn bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700" onclick="makeCreditCardPurchase('${card.id}')">
-                                        Add Purchase
-                                    </button>
-                                </div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-                
-                ${creditCards.length === 0 ? `
-                    <div class="bg-white dark:bg-gray-800 p-12 rounded-lg shadow text-center">
-                        <i data-lucide="credit-card" class="w-12 h-12 text-gray-400 mx-auto mb-4"></i>
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Credit Cards</h3>
-                        <p class="text-gray-600 dark:text-gray-400 mb-4">You haven't added any credit cards yet.</p>
-                        <button class="btn bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700" onclick="showAddCreditCardModal()">
-                            Add Your First Credit Card
-                        </button>
-                    </div>
-                ` : ''}
-            </div>
-        `;
-        
-        $('#content').html(html);
-        lucide.createIcons();
-    }
     
     function loadBankLoans() {
         const bankLoans = app.loans && app.loans.bank ? app.loans.bank : [];
@@ -1227,7 +757,9 @@ $(document).ready(function() {
             function() {
                 app.loans.credit = app.loans.credit.filter(c => c.id !== id);
                 saveLoansToFirebase();
-                loadCreditCards();
+                if (window.loadCreditCards) {
+                    window.loadCreditCards();
+                }
                 showToast('Credit card deleted successfully', 'success');
             }
         );
@@ -1260,7 +792,9 @@ $(document).ready(function() {
                 
                 saveLoansToFirebase();
                 saveTransactionsToFirebase();
-                loadCreditCards();
+                if (window.loadCreditCards) {
+                    window.loadCreditCards();
+                }
                 showToast(`Payment of $${paymentAmount.toLocaleString()} recorded successfully`, 'success');
             }
         );
@@ -1293,7 +827,9 @@ $(document).ready(function() {
                 
                 saveLoansToFirebase();
                 saveTransactionsToFirebase();
-                loadCreditCards();
+                if (window.loadCreditCards) {
+                    window.loadCreditCards();
+                }
                 showToast(`Purchase of $${purchaseAmount.toLocaleString()} recorded successfully`, 'success');
             }
         );
@@ -1322,7 +858,9 @@ $(document).ready(function() {
             function() {
                 app.loans.bank = app.loans.bank.filter(l => l.id !== id);
                 saveLoansToFirebase();
-                loadBankLoans();
+                if (window.loadBankLoans) {
+                    window.loadBankLoans();
+                }
                 showToast('Bank loan deleted successfully', 'success');
             }
         );
@@ -1401,7 +939,9 @@ $(document).ready(function() {
                 
                 saveLoansToFirebase();
                 saveTransactionsToFirebase();
-                loadBankLoans();
+                if (window.loadBankLoans) {
+                    window.loadBankLoans();
+                }
                 showToast(`Loan fully prepaid! $${paymentAmount.toLocaleString()} recorded`, 'success');
             }
         );
@@ -1588,7 +1128,9 @@ $(document).ready(function() {
             saveLoansToFirebase();
             
             closeCreditCardModal();
-            loadCreditCards();
+            if (window.loadCreditCards) {
+                window.loadCreditCards();
+            }
         });
         
         $('#bankLoanForm').submit(function(e) {
@@ -1614,7 +1156,32 @@ $(document).ready(function() {
             
             // Calculate EMI and outstanding
             const emi = calculateEMI(principalAmount, annualInterestRate, tenureMonths);
-            const currentOutstanding = principalAmount + (principalAmount * annualInterestRate / 100 * tenureMonths / 12) - totalPaid;
+            
+            // Calculate remaining balance using simpler approach
+            const monthsPaid = tenureMonths - monthsRemaining;
+            
+            let currentOutstanding;
+            
+            if (monthsPaid >= tenureMonths) {
+                currentOutstanding = 0;
+            } else {
+                // Calculate remaining principal using amortization
+                const monthlyRate = annualInterestRate / 12 / 100;
+                const emi = calculateEMI(principalAmount, annualInterestRate, tenureMonths);
+                
+                // Calculate remaining balance after n payments
+                let remainingPrincipal = principalAmount;
+                for (let i = 0; i < monthsPaid; i++) {
+                    const interestPayment = remainingPrincipal * monthlyRate;
+                    const principalPayment = emi - interestPayment;
+                    remainingPrincipal -= principalPayment;
+                }
+                
+                currentOutstanding = Math.max(0, remainingPrincipal);
+            }
+            
+            // Ensure outstanding balance doesn't go negative
+            currentOutstanding = Math.max(0, currentOutstanding);
             
             const newLoan = {
                 id: Date.now().toString(),
@@ -1624,7 +1191,7 @@ $(document).ready(function() {
                 tenureMonths: tenureMonths,
                 startDate: new Date(startDate).toISOString(),
                 totalPaid: totalPaid,
-                currentOutstanding: Math.max(0, currentOutstanding),
+                currentOutstanding: emi * monthsRemaining,
                 monthsRemaining: monthsRemaining
             };
             
@@ -1846,6 +1413,25 @@ $(document).ready(function() {
         }
     }
     
+    // Expose calculation functions immediately so UI can access them
+    window.calculateTotalDebt = calculateTotalDebt;
+    window.calculatePersonalLoansTotal = calculatePersonalLoansTotal;
+    window.calculatePersonalLoansPaid = calculatePersonalLoansPaid;
+    window.calculateCreditCardsTotal = calculateCreditCardsTotal;
+    window.calculateCreditCardsLimit = calculateCreditCardsLimit;
+    window.calculateCreditCardsAvailable = calculateCreditCardsAvailable;
+    window.calculateBankLoansTotal = calculateBankLoansTotal;
+    window.calculateBankLoansPrincipal = calculateBankLoansPrincipal;
+    window.calculateBankLoansPaid = calculateBankLoansPaid;
+    window.calculateBankLoansEMI = calculateBankLoansEMI;
+    window.calculateEMI = calculateEMI;
+    window.calculateTotalPayments = calculateTotalPayments;
+    window.calculateTotalWithdrawals = calculateTotalWithdrawals;
+    window.calculateNetFlow = calculateNetFlow;
+    window.getRecentTransactions = getRecentTransactions;
+    window.getFilteredTransactions = getFilteredTransactions;
+    window.initCharts = initCharts;
+    
     // Initialize application
     initializeSampleData();
     init();
@@ -1872,25 +1458,49 @@ $(document).ready(function() {
         transactions: app.transactions,
         currentUser: app.currentUser
     };
-});
-
-// Global functions for onclick handlers - must be defined at top level
-function navigateTo(page) {
-    if (window.app && window.app.navigateTo) {
-        window.app.navigateTo(page);
-    }
-}
-
-function showAddPersonalLoanModal() {
-    if (window.app && window.app.showAddPersonalLoanModal) {
-        window.app.showAddPersonalLoanModal();
-    }
-}
+    
+    // Expose calculation functions to window.appCore object
+    window.appCore = {
+        editPersonalLoan: editPersonalLoan,
+        deletePersonalLoan: deletePersonalLoan,
+        makePersonalLoanPayment: makePersonalLoanPayment,
+        payOffPersonalLoan: payOffPersonalLoan,
+        editCreditCard: editCreditCard,
+        deleteCreditCard: deleteCreditCard,
+        makeCreditCardPayment: makeCreditCardPayment,
+        makeCreditCardPurchase: makeCreditCardPurchase,
+        editBankLoan: editBankLoan,
+        deleteBankLoan: deleteBankLoan,
+        makeBankLoanPayment: makeBankLoanPayment,
+        prepayBankLoan: prepayBankLoan,
+        calculateTotalDebt: calculateTotalDebt,
+        calculatePersonalLoansTotal: calculatePersonalLoansTotal,
+        calculatePersonalLoansPaid: calculatePersonalLoansPaid,
+        calculateCreditCardsTotal: calculateCreditCardsTotal,
+        calculateCreditCardsLimit: calculateCreditCardsLimit,
+        calculateCreditCardsAvailable: calculateCreditCardsAvailable,
+        calculateBankLoansTotal: calculateBankLoansTotal,
+        calculateBankLoansPrincipal: calculateBankLoansPrincipal,
+        calculateBankLoansPaid: calculateBankLoansPaid,
+        calculateBankLoansEMI: calculateBankLoansEMI,
+        calculateEMI: calculateEMI,
+        calculateTotalPayments: calculateTotalPayments,
+        calculateTotalWithdrawals: calculateTotalWithdrawals,
+        calculateNetFlow: calculateNetFlow,
+        getRecentTransactions: getRecentTransactions,
+        getFilteredTransactions: getFilteredTransactions,
+        initCharts: initCharts,
+        toggleDarkMode: toggleDarkMode,
+        login: login,
+        signup: signup,
+        logout: logout
+    };
 
 function closePersonalLoanModal() {
     $('#personalLoanModal').addClass('hidden');
 }
 
+// ... rest of the code remains the same ...
 function showAddCreditCardModal() {
     if (window.app && window.app.showAddCreditCardModal) {
         window.app.showAddCreditCardModal();
@@ -1911,162 +1521,5 @@ function closeBankLoanModal() {
     $('#bankLoanModal').addClass('hidden');
 }
 
-// Loan management functions - must be globally accessible for onclick handlers
-function makePersonalLoanPayment(id) {
-    if (window.app && window.app.makePersonalLoanPayment) {
-        window.app.makePersonalLoanPayment(id);
-    }
-}
 
-function payOffPersonalLoan(id) {
-    if (window.app && window.app.payOffPersonalLoan) {
-        window.app.payOffPersonalLoan(id);
-    }
-}
-
-function editPersonalLoan(id) {
-    if (window.app && window.app.editPersonalLoan) {
-        window.app.editPersonalLoan(id);
-    }
-}
-
-function deletePersonalLoan(id) {
-    if (window.app && window.app.deletePersonalLoan) {
-        window.app.deletePersonalLoan(id);
-    }
-}
-
-function makeCreditCardPayment(id) {
-    if (window.app && window.app.makeCreditCardPayment) {
-        window.app.makeCreditCardPayment(id);
-    }
-}
-
-function makeCreditCardPurchase(id) {
-    if (window.app && window.app.makeCreditCardPurchase) {
-        window.app.makeCreditCardPurchase(id);
-    }
-}
-
-function editCreditCard(id) {
-    if (window.app && window.app.editCreditCard) {
-        window.app.editCreditCard(id);
-    }
-}
-
-function deleteCreditCard(id) {
-    if (window.app && window.app.deleteCreditCard) {
-        window.app.deleteCreditCard(id);
-    }
-}
-
-function makeBankLoanPayment(id, amount) {
-    if (window.app && window.app.makeBankLoanPayment) {
-        window.app.makeBankLoanPayment(id, amount);
-    }
-}
-
-function prepayBankLoan(id) {
-    if (window.app && window.app.prepayBankLoan) {
-        window.app.prepayBankLoan(id);
-    }
-}
-
-function editBankLoan(id) {
-    if (window.app && window.app.editBankLoan) {
-        window.app.editBankLoan(id);
-    }
-}
-
-function deleteBankLoan(id) {
-    if (window.app && window.app.deleteBankLoan) {
-        window.app.deleteBankLoan(id);
-    }
-}
-
-function closePaymentModal() {
-    $('#paymentModal').addClass('hidden');
-}
-
-// Edit modal functions
-function closeEditPersonalLoanModal() {
-    $('#editPersonalLoanModal').addClass('hidden');
-}
-
-function closeEditCreditCardModal() {
-    $('#editCreditCardModal').addClass('hidden');
-}
-
-function closeEditBankLoanModal() {
-    $('#editBankLoanModal').addClass('hidden');
-}
-
-// History functionality
-function showLoanHistory(type, id, name) {
-    console.log('History requested:', { type, id, name });
-    console.log('All transactions:', app.transactions);
-    
-    // Better filtering logic - match by loan ID or exact name
-    const relatedTransactions = app.transactions.filter(t => {
-        if (type === 'personal') {
-            return t.category === 'personal' && 
-                   (t.description.includes(name) || t.loanId === id);
-        } else if (type === 'credit') {
-            return t.category === 'credit' && 
-                   (t.description.includes(name) || t.loanId === id);
-        } else if (type === 'bank') {
-            return t.category === 'bank' && 
-                   (t.description.includes(name) || t.loanId === id);
-        }
-        return false;
-    });
-    
-    console.log('Filtered transactions:', relatedTransactions);
-    
-    const historyHtml = `
-        <div class="space-y-4">
-            <div class="bg-blue-50 dark:bg-blue-900 p-4 rounded-lg">
-                <h4 class="font-semibold text-blue-900 dark:text-blue-100 mb-2">${name} - Transaction History</h4>
-                <p class="text-sm text-blue-700 dark:text-blue-300">${relatedTransactions.length} transactions found</p>
-            </div>
-            
-            <div class="space-y-2">
-                ${relatedTransactions.length === 0 ? `
-                    <div class="text-center py-8 text-gray-500 dark:text-gray-400">
-                        <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-4"></i>
-                        <p>No transactions found for this loan</p>
-                        <p class="text-sm mt-2">Try making a payment or adding a new loan to see history</p>
-                    </div>
-                ` : relatedTransactions.map(t => `
-                    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-3">
-                                <div class="p-2 ${t.type === 'payment' ? 'bg-green-100 dark:bg-green-900' : 'bg-red-100 dark:bg-red-900'} rounded-full">
-                                    <i data-lucide="${t.type === 'payment' ? 'arrow-down-left' : 'arrow-up-right'}" class="w-4 h-4 ${t.type === 'payment' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}"></i>
-                                </div>
-                                <div>
-                                    <p class="font-medium text-gray-900 dark:text-white">${t.description}</p>
-                                    <p class="text-sm text-gray-500 dark:text-gray-400">${new Date(t.date).toLocaleDateString()} at ${new Date(t.date).toLocaleTimeString()}</p>
-                                </div>
-                            </div>
-                            <div class="text-right">
-                                <p class="font-semibold ${t.type === 'payment' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
-                                    ${t.type === 'payment' ? '+' : '-'}$${t.amount.toLocaleString()}
-                                </p>
-                                <p class="text-sm text-gray-500 dark:text-gray-400">${t.type === 'payment' ? 'Payment' : t.type === 'withdrawal' ? (type === 'credit' ? 'Purchase' : 'Loan Disbursement') : 'Other'}</p>
-                            </div>
-                        </div>
-                    </div>
-                `).join('')}
-            </div>
-        </div>
-    `;
-    
-    $('#historyContent').html(historyHtml);
-    $('#historyModal').removeClass('hidden');
-    lucide.createIcons();
-}
-
-function closeHistoryModal() {
-    $('#historyModal').addClass('hidden');
-}
+});
