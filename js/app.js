@@ -151,22 +151,12 @@ $(document).ready(function() {
         userRef.child('loans').on('value', function(snapshot) {
             const loans = snapshot.val() || { personal: [], credit: [], bank: [] };
             app.loans = loans;
-            
-            // Refresh current page if data changes and not during initial login
-            if (app.currentPage !== 'dashboard' && $('#mainApp').is(':visible')) {
-                loadPage(app.currentPage);
-            }
         });
         
         // Load transactions
         userRef.child('transactions').on('value', function(snapshot) {
             const transactions = snapshot.val() || [];
             app.transactions = Array.isArray(transactions) ? transactions : Object.values(transactions);
-            
-            // Refresh current page if data changes and not during initial login
-            if ((app.currentPage === 'history' || app.currentPage === 'dashboard') && $('#mainApp').is(':visible')) {
-                loadPage(app.currentPage);
-            }
         });
     }
     
