@@ -672,12 +672,14 @@ $(document).ready(function() {
     
     function deletePersonalLoan(id) {
         showConfirmDialog(
-            'Are you sure you want to delete this personal loan?',
+            'Are you sure you want to delete this personal loan? All related transactions will also be deleted.',
             function() {
                 app.loans.personal = app.loans.personal.filter(l => l.id !== id);
+                app.transactions = app.transactions.filter(t => t.loanId !== id);
                 saveLoansToFirebase();
+                saveTransactionsToFirebase();
                 navigateTo('personal');
-                showToast('Personal loan deleted successfully', 'success');
+                showToast('Personal loan and related transactions deleted successfully', 'success');
             }
         );
     }
@@ -765,12 +767,14 @@ $(document).ready(function() {
     
     function deleteCreditCard(id) {
         showConfirmDialog(
-            'Are you sure you want to delete this credit card?',
+            'Are you sure you want to delete this credit card? All related transactions will also be deleted.',
             function() {
                 app.loans.credit = app.loans.credit.filter(c => c.id !== id);
+                app.transactions = app.transactions.filter(t => t.loanId !== id);
                 saveLoansToFirebase();
+                saveTransactionsToFirebase();
                 navigateTo('credit');
-                showToast('Credit card deleted successfully', 'success');
+                showToast('Credit card and related transactions deleted successfully', 'success');
             }
         );
     }
@@ -860,12 +864,14 @@ $(document).ready(function() {
     
     function deleteBankLoan(id) {
         showConfirmDialog(
-            'Are you sure you want to delete this bank loan?',
+            'Are you sure you want to delete this bank loan? All related transactions will also be deleted.',
             function() {
                 app.loans.bank = app.loans.bank.filter(l => l.id !== id);
+                app.transactions = app.transactions.filter(t => t.loanId !== id);
                 saveLoansToFirebase();
+                saveTransactionsToFirebase();
                 navigateTo('bank');
-                showToast('Bank loan deleted successfully', 'success');
+                showToast('Bank loan and related transactions deleted successfully', 'success');
             }
         );
     }
