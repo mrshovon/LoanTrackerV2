@@ -7,7 +7,7 @@ $(document).ready(function() {
     window.app = {
         currentUser: null,
         darkMode: false,
-        currentPage: 'dashboard',
+        currentPage: localStorage.getItem('loanTrackerCurrentPage') || 'dashboard',
         loans: {
             personal: [],
             credit: [],
@@ -45,7 +45,8 @@ $(document).ready(function() {
         $('#authPage').addClass('hidden');
         $('#mainApp').removeClass('hidden');
         $('#userEmail').text(app.currentUser.email);
-        loadDashboard();
+        loadPage(app.currentPage);
+        updateNavigation();
     }
     
     function login(email, password) {
@@ -675,7 +676,7 @@ $(document).ready(function() {
             function() {
                 app.loans.personal = app.loans.personal.filter(l => l.id !== id);
                 saveLoansToFirebase();
-                loadPersonalLoans();
+                navigateTo('personal');
                 showToast('Personal loan deleted successfully', 'success');
             }
         );
@@ -708,7 +709,7 @@ $(document).ready(function() {
                 
                 saveLoansToFirebase();
                 saveTransactionsToFirebase();
-                loadPersonalLoans();
+                navigateTo('personal');
                 showToast(`Payment of $${paymentAmount.toLocaleString()} recorded successfully`, 'success');
             }
         );
@@ -741,7 +742,7 @@ $(document).ready(function() {
                 
                 saveLoansToFirebase();
                 saveTransactionsToFirebase();
-                loadPersonalLoans();
+                navigateTo('personal');
                 showToast(`Loan fully paid off! $${paymentAmount.toLocaleString()} recorded`, 'success');
             }
         );
@@ -768,9 +769,7 @@ $(document).ready(function() {
             function() {
                 app.loans.credit = app.loans.credit.filter(c => c.id !== id);
                 saveLoansToFirebase();
-                if (window.loadCreditCards) {
-                    window.loadCreditCards();
-                }
+                navigateTo('credit');
                 showToast('Credit card deleted successfully', 'success');
             }
         );
@@ -803,9 +802,7 @@ $(document).ready(function() {
                 
                 saveLoansToFirebase();
                 saveTransactionsToFirebase();
-                if (window.loadCreditCards) {
-                    window.loadCreditCards();
-                }
+                navigateTo('credit');
                 showToast(`Payment of $${paymentAmount.toLocaleString()} recorded successfully`, 'success');
             }
         );
@@ -838,9 +835,7 @@ $(document).ready(function() {
                 
                 saveLoansToFirebase();
                 saveTransactionsToFirebase();
-                if (window.loadCreditCards) {
-                    window.loadCreditCards();
-                }
+                navigateTo('credit');
                 showToast(`Purchase of $${purchaseAmount.toLocaleString()} recorded successfully`, 'success');
             }
         );
@@ -869,9 +864,7 @@ $(document).ready(function() {
             function() {
                 app.loans.bank = app.loans.bank.filter(l => l.id !== id);
                 saveLoansToFirebase();
-                if (window.loadBankLoans) {
-                    window.loadBankLoans();
-                }
+                navigateTo('bank');
                 showToast('Bank loan deleted successfully', 'success');
             }
         );
@@ -918,7 +911,7 @@ $(document).ready(function() {
         
         saveLoansToFirebase();
         saveTransactionsToFirebase();
-        loadBankLoans();
+        navigateTo('bank');
         showToast(`EMI payment of $${paymentAmount.toLocaleString()} recorded successfully`, 'success');
     }
     
@@ -950,9 +943,7 @@ $(document).ready(function() {
                 
                 saveLoansToFirebase();
                 saveTransactionsToFirebase();
-                if (window.loadBankLoans) {
-                    window.loadBankLoans();
-                }
+                navigateTo('bank');
                 showToast(`Loan fully prepaid! $${paymentAmount.toLocaleString()} recorded`, 'success');
             }
         );
@@ -1105,7 +1096,7 @@ $(document).ready(function() {
             saveTransactionsToFirebase();
             
             closePersonalLoanModal();
-            loadPersonalLoans();
+            navigateTo('personal');
         });
         
         $('#creditCardForm').submit(function(e) {
@@ -1133,9 +1124,7 @@ $(document).ready(function() {
             saveLoansToFirebase();
             
             closeCreditCardModal();
-            if (window.loadCreditCards) {
-                window.loadCreditCards();
-            }
+            navigateTo('credit');
         });
         
         $('#bankLoanForm').submit(function(e) {
@@ -1217,7 +1206,7 @@ $(document).ready(function() {
             saveTransactionsToFirebase();
             
             closeBankLoanModal();
-            loadBankLoans();
+            navigateTo('bank');
         });
         
         // Search transactions

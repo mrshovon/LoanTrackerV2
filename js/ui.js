@@ -83,6 +83,7 @@ $(document).ready(function() {
     // Navigation functions
     window.navigateTo = function(page) {
         app.currentPage = page;
+        localStorage.setItem('loanTrackerCurrentPage', page);
         updateNavigation();
         loadPage(page);
         closeSidebarOnMobile();
