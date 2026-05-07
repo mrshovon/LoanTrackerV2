@@ -151,12 +151,22 @@ $(document).ready(function() {
         userRef.child('loans').on('value', function(snapshot) {
             const loans = snapshot.val() || { personal: [], credit: [], bank: [] };
             app.loans = loans;
+            
+            // Load dashboard after data is loaded
+            if ($('#mainApp').is(':visible') && app.currentPage === 'dashboard') {
+                loadDashboard();
+            }
         });
         
         // Load transactions
         userRef.child('transactions').on('value', function(snapshot) {
             const transactions = snapshot.val() || [];
             app.transactions = Array.isArray(transactions) ? transactions : Object.values(transactions);
+            
+            // Load dashboard after data is loaded
+            if ($('#mainApp').is(':visible') && app.currentPage === 'dashboard') {
+                loadDashboard();
+            }
         });
     }
     
@@ -1041,9 +1051,9 @@ $(document).ready(function() {
         
         // Logout
         $('#logoutBtn').click(function() {
-            if (confirm('Are you sure you want to logout?')) {
+            showConfirmDialog('Are you sure you want to logout?', function() {
                 logout();
-            }
+            });
         });
         
         // Handle window resize
@@ -1205,6 +1215,9 @@ $(document).ready(function() {
             };
             app.transactions.push(transaction);
             saveTransactionsToFirebase();
+            
+            closeBankLoanModal();
+            loadBankLoans();
         });
         
         // Search transactions
