@@ -41,6 +41,7 @@ $(document).ready(function() {
     }
     
     function showMainApp() {
+        $('#loginError').addClass('hidden');
         $('#authPage').addClass('hidden');
         $('#mainApp').removeClass('hidden');
         $('#userEmail').text(app.currentUser.email);
@@ -48,23 +49,27 @@ $(document).ready(function() {
     }
     
     function login(email, password) {
-        // Demo authentication - in production, this would validate against a backend
-        if (email === 'demo@example.com' && password === 'demo123') {
-            const user = {
-                uid: 'demo-user',
-                email: email,
-                displayName: 'Demo User',
-                createdAt: new Date().toISOString()
-            };
-            
-            localStorage.setItem('loanTrackerUser', JSON.stringify(user));
-            app.currentUser = user;
-            loadUserData();
-            showMainApp();
-            return true;
-        }
+    // Hide error message initially
+    $('#loginError').addClass('hidden');
+    
+    // Demo authentication - in production, this would validate against a backend
+    if (email === 'demo@example.com' && password === 'demo123') {
+        const user = {
+            uid: 'demo-user',
+            email: email,
+            displayName: 'Demo User',
+            createdAt: new Date().toISOString()
+        };
         
-        // Check for other users in Firebase
+        localStorage.setItem('loanTrackerUser', JSON.stringify(user));
+        app.currentUser = user;
+        loadUserData();
+        showMainApp();
+        $('#loginEmail').val('');
+        $('#loginPassword').val('');
+        return true; // Return true to indicate success
+    } else {
+        // Check for other users in Firebase (only runs if not demo login)
         database.ref('users').orderByChild('email').equalTo(email).once('value', function(snapshot) {
             const users = snapshot.val();
             const foundUser = users ? Object.values(users)[0] : null;
@@ -74,13 +79,19 @@ $(document).ready(function() {
                 app.currentUser = foundUser;
                 loadUserData();
                 showMainApp();
+                $('#loginEmail').val('');
+                $('#loginPassword').val('');
             } else {
-                $('#loginError').removeClass('hidden').find('p').text('Invalid email or password');
+                // Only show error if user is not already logged in
+                if (!app.currentUser || $('#authPage').is(':visible')) {
+                    $('#loginError').removeClass('hidden').find('p').text('Invalid email or password');
+                }
             }
         });
         
-        return false;
+        return false; // Firebase login is async, return false initially
     }
+}
     
     function signup(name, email, password) {
         // Check if user already exists
@@ -141,8 +152,8 @@ $(document).ready(function() {
             const loans = snapshot.val() || { personal: [], credit: [], bank: [] };
             app.loans = loans;
             
-            // Refresh current page if data changes
-            if (app.currentPage !== 'dashboard') {
+            // Refresh current page if data changes and not during initial login
+            if (app.currentPage !== 'dashboard' && $('#mainApp').is(':visible')) {
                 loadPage(app.currentPage);
             }
         });
@@ -152,8 +163,8 @@ $(document).ready(function() {
             const transactions = snapshot.val() || [];
             app.transactions = Array.isArray(transactions) ? transactions : Object.values(transactions);
             
-            // Refresh current page if data changes
-            if (app.currentPage === 'history' || app.currentPage === 'dashboard') {
+            // Refresh current page if data changes and not during initial login
+            if ((app.currentPage === 'history' || app.currentPage === 'dashboard') && $('#mainApp').is(':visible')) {
                 loadPage(app.currentPage);
             }
         });
@@ -959,13 +970,7 @@ $(document).ready(function() {
                 return;
             }
             
-            if (!login(email, password)) {
-                $('#loginError').removeClass('hidden').find('p').text('Invalid email or password');
-            } else {
-                $('#loginError').addClass('hidden');
-                $('#loginEmail').val('');
-                $('#loginPassword').val('');
-            }
+            login(email, password);
         });
         
         $('#signupBtn').click(function() {
