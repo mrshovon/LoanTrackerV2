@@ -209,17 +209,17 @@ $(document).ready(function() {
                 <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                     <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <button class="btn bg-blue-600 text-white p-4 rounded-lg hover:bg-blue-700" onclick="navigateTo('personal')">
-                            <i data-lucide="user-plus" class="w-6 h-6 mb-2"></i>
-                            <p>Add Personal Loan</p>
+                        <button class="btn bg-blue-600 text-white p-4 rounded-lg hover:bg-blue-700 flex items-center justify-center" onclick="navigateTo('personal')">
+                            <i data-lucide="user-plus" class="w-6 h-6 mr-2"></i>
+                            <span>Add Personal Loan</span>
                         </button>
-                        <button class="btn bg-green-600 text-white p-4 rounded-lg hover:bg-green-700" onclick="navigateTo('credit')">
-                            <i data-lucide="credit-card" class="w-6 h-6 mb-2"></i>
-                            <p>Add Credit Card</p>
+                        <button class="btn bg-green-600 text-white p-4 rounded-lg hover:bg-green-700 flex items-center justify-center" onclick="navigateTo('credit')">
+                            <i data-lucide="credit-card" class="w-6 h-6 mr-2"></i>
+                            <span>Add Credit Card</span>
                         </button>
-                        <button class="btn bg-orange-600 text-white p-4 rounded-lg hover:bg-orange-700" onclick="navigateTo('bank')">
-                            <i data-lucide="building" class="w-6 h-6 mb-2"></i>
-                            <p>Add Bank Loan</p>
+                        <button class="btn bg-orange-600 text-white p-4 rounded-lg hover:bg-orange-700 flex items-center justify-center" onclick="navigateTo('bank')">
+                            <i data-lucide="building" class="w-6 h-6 mr-2"></i>
+                            <span>Add Bank Loan</span>
                         </button>
                     </div>
                 </div>
@@ -260,7 +260,7 @@ $(document).ready(function() {
             <div class="space-y-6">
                 <div class="flex justify-between items-center">
                     <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Personal Loans</h1>
-                    <button class="btn bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" onclick="showAddPersonalLoanModal()">
+                    <button class="btn bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center" onclick="showAddPersonalLoanModal()">
                         <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
                         Add Personal Loan
                     </button>
@@ -364,7 +364,7 @@ $(document).ready(function() {
             <div class="space-y-6">
                 <div class="flex justify-between items-center">
                     <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Credit Cards</h1>
-                    <button class="btn bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700" onclick="showAddCreditCardModal()">
+                    <button class="btn bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center" onclick="showAddCreditCardModal()">
                         <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
                         Add Credit Card
                     </button>
@@ -481,7 +481,7 @@ $(document).ready(function() {
             <div class="space-y-6">
                 <div class="flex justify-between items-center">
                     <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Bank Loans</h1>
-                    <button class="btn bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700" onclick="showAddBankLoanModal()">
+                    <button class="btn bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 flex items-center" onclick="showAddBankLoanModal()">
                         <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
                         Add Bank Loan
                     </button>
