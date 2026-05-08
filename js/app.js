@@ -206,9 +206,21 @@ $(document).ready(function() {
             const loans = snapshot.val() || { personal: [], credit: [], bank: [] };
             app.loans = loans;
             
-            // Load dashboard after data is loaded
-            if ($('#mainApp').is(':visible') && app.currentPage === 'dashboard') {
-                loadDashboard();
+            // Reload current page based on active page
+            if ($('#mainApp').is(':visible')) {
+                if (app.currentPage === 'dashboard') {
+                    loadDashboard();
+                } else if (app.currentPage === 'personal') {
+                    loadPersonalLoans();
+                } else if (app.currentPage === 'credit') {
+                    loadCreditCards();
+                } else if (app.currentPage === 'bank') {
+                    loadBankLoans();
+                } else if (app.currentPage === 'charts') {
+                    loadCharts();
+                } else if (app.currentPage === 'history') {
+                    loadHistory();
+                }
             }
         });
         
@@ -217,9 +229,21 @@ $(document).ready(function() {
             const transactions = snapshot.val() || [];
             app.transactions = Array.isArray(transactions) ? transactions : Object.values(transactions);
             
-            // Load dashboard after data is loaded
-            if ($('#mainApp').is(':visible') && app.currentPage === 'dashboard') {
-                loadDashboard();
+            // Reload current page based on active page
+            if ($('#mainApp').is(':visible')) {
+                if (app.currentPage === 'dashboard') {
+                    loadDashboard();
+                } else if (app.currentPage === 'personal') {
+                    loadPersonalLoans();
+                } else if (app.currentPage === 'credit') {
+                    loadCreditCards();
+                } else if (app.currentPage === 'bank') {
+                    loadBankLoans();
+                } else if (app.currentPage === 'charts') {
+                    loadCharts();
+                } else if (app.currentPage === 'history') {
+                    loadHistory();
+                }
             }
         });
     }
