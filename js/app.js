@@ -8,6 +8,19 @@ $(document).ready(function() {
         currentUser: null,
         darkMode: false,
         currentPage: localStorage.getItem('loanTrackerCurrentPage') || 'dashboard',
+        currency: localStorage.getItem('loanTrackerCurrency') || 'USD',
+        currencyConfig: {
+            USD: {
+                symbol: '$',
+                icon: 'dollar-sign',
+                code: 'USD'
+            },
+            BDT: {
+                symbol: '৳',
+                icon: 'currency-bangladeshi',
+                code: 'BDT'
+            }
+        },
         loans: {
             personal: [],
             credit: [],
@@ -16,6 +29,46 @@ $(document).ready(function() {
         transactions: []
     };
     
+    // Currency helper functions
+    function getCurrencySymbol() {
+        return app.currencyConfig[app.currency]?.symbol || '$';
+    }
+
+    function getCurrencyIcon() {
+        return app.currencyConfig[app.currency]?.icon || 'dollar-sign';
+    }
+
+    function formatCurrency(amount) {
+        const symbol = getCurrencySymbol();
+        return `${symbol}${amount.toLocaleString()}`;
+    }
+
+    function setCurrency(currency) {
+        if (app.currencyConfig[currency]) {
+            app.currency = currency;
+            localStorage.setItem('loanTrackerCurrency', currency);
+            refreshCurrentPage();
+        }
+    }
+
+    function refreshCurrentPage() {
+        loadPage(app.currentPage);
+        updateNavigation();
+        updateCurrencyDisplay();
+    }
+
+    function updateCurrencyDisplay() {
+        $('#currentCurrency').text(app.currency);
+        $('#currentCurrencyDesktop').text(app.currency);
+        
+        // Update form currency symbols
+        const currencySymbol = getCurrencySymbol();
+        $('#personalLoanCurrencySymbol').text(currencySymbol);
+        $('#personalLoanPaidCurrencySymbol').text(currencySymbol);
+        
+        // Update any other currency displays
+    }
+
     // Initialize application
     function init() {
         loadDarkMode();
@@ -1046,6 +1099,24 @@ $(document).ready(function() {
             toggleDarkMode();
         });
         
+        // Currency dropdown toggle (mobile)
+        $('#currencyToggle').click(function(e) {
+            e.stopPropagation();
+            $('#currencyDropdown').toggleClass('hidden');
+        });
+        
+        // Currency dropdown toggle (desktop)
+        $('#currencyToggleDesktop').click(function(e) {
+            e.stopPropagation();
+            $('#currencyDropdownDesktop').toggleClass('hidden');
+        });
+        
+        // Close currency dropdowns when clicking outside
+        $(document).click(function() {
+            $('#currencyDropdown').addClass('hidden');
+            $('#currencyDropdownDesktop').addClass('hidden');
+        });
+        
         // Logout
         $('#logoutBtn').click(function() {
             showConfirmDialog('Are you sure you want to logout?', function() {
@@ -1434,6 +1505,12 @@ $(document).ready(function() {
     window.getRecentTransactions = getRecentTransactions;
     window.getFilteredTransactions = getFilteredTransactions;
     window.initCharts = initCharts;
+    
+    // Expose currency functions to global scope
+    window.getCurrencySymbol = getCurrencySymbol;
+    window.getCurrencyIcon = getCurrencyIcon;
+    window.formatCurrency = formatCurrency;
+    window.setCurrency = setCurrency;
     
     // Initialize application
     initializeSampleData();

@@ -60,7 +60,7 @@ $(document).ready(function() {
                 return;
             }
             if (amount > maxAmount) {
-                showToast(`Maximum payment amount is $${maxAmount.toLocaleString()}`, 'error');
+                showToast(`Maximum payment amount is ${formatCurrency(maxAmount)}`, 'error');
                 return;
             }
             $('#paymentModal').addClass('hidden');
@@ -160,10 +160,10 @@ $(document).ready(function() {
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Debt</p>
-                                <p class="text-2xl font-bold text-gray-900 dark:text-white">$${calculateTotalDebt().toLocaleString()}</p>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white">${formatCurrency(calculateTotalDebt())}</p>
                             </div>
                             <div class="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
-                                <i data-lucide="dollar-sign" class="w-6 h-6 text-blue-600 dark:text-blue-400"></i>
+                                <i data-lucide="${getCurrencyIcon()}" class="w-6 h-6 text-blue-600 dark:text-blue-400"></i>
                             </div>
                         </div>
                     </div>
@@ -172,7 +172,7 @@ $(document).ready(function() {
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Personal Loans</p>
-                                <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">$${calculatePersonalLoansTotal().toLocaleString()}</p>
+                                <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">${formatCurrency(calculatePersonalLoansTotal())}</p>
                             </div>
                             <div class="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
                                 <i data-lucide="user" class="w-6 h-6 text-blue-600 dark:text-blue-400"></i>
@@ -184,7 +184,7 @@ $(document).ready(function() {
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Credit Cards</p>
-                                <p class="text-2xl font-bold text-green-600 dark:text-green-400">$${calculateCreditCardsTotal().toLocaleString()}</p>
+                                <p class="text-2xl font-bold text-green-600 dark:text-green-400">${formatCurrency(calculateCreditCardsTotal())}</p>
                             </div>
                             <div class="p-3 bg-green-100 dark:bg-green-900 rounded-full">
                                 <i data-lucide="credit-card" class="w-6 h-6 text-green-600 dark:text-green-400"></i>
@@ -196,7 +196,7 @@ $(document).ready(function() {
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Bank Loans</p>
-                                <p class="text-2xl font-bold text-orange-600 dark:text-orange-400">$${calculateBankLoansTotal().toLocaleString()}</p>
+                                <p class="text-2xl font-bold text-orange-600 dark:text-orange-400">${formatCurrency(calculateBankLoansTotal())}</p>
                             </div>
                             <div class="p-3 bg-orange-100 dark:bg-orange-900 rounded-full">
                                 <i data-lucide="building" class="w-6 h-6 text-orange-600 dark:text-orange-400"></i>
@@ -241,7 +241,7 @@ $(document).ready(function() {
                                 </div>
                                 <div class="text-right">
                                     <p class="font-semibold ${t.type === 'payment' ? 'text-green-600' : 'text-red-600'}">
-                                        ${t.type === 'payment' ? '-' : '+'}$${t.amount.toLocaleString()}
+                                        ${t.type === 'payment' ? '-' : '+'}${formatCurrency(t.amount)}
                                     </p>
                                 </div>
                             </div>
@@ -275,11 +275,11 @@ $(document).ready(function() {
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Amount</p>
-                        <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">$${calculatePersonalLoansTotal().toLocaleString()}</p>
+                        <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">${formatCurrency(calculatePersonalLoansTotal())}</p>
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Paid</p>
-                        <p class="text-2xl font-bold text-green-600 dark:text-green-400">$${calculatePersonalLoansPaid().toLocaleString()}</p>
+                        <p class="text-2xl font-bold text-green-600 dark:text-green-400">${formatCurrency(calculatePersonalLoansPaid())}</p>
                     </div>
                 </div>
                 
@@ -308,15 +308,15 @@ $(document).ready(function() {
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                 <div>
                                     <p class="text-sm text-gray-600 dark:text-gray-400">Total Loan</p>
-                                    <p class="text-lg font-semibold text-gray-900 dark:text-white">$${loan.totalLoanAmount.toLocaleString()}</p>
+                                    <p class="text-lg font-semibold text-gray-900 dark:text-white">${formatCurrency(loan.totalLoanAmount)}</p>
                                 </div>
                                 <div>
                                     <p class="text-sm text-gray-600 dark:text-gray-400">Amount Paid</p>
-                                    <p class="text-lg font-semibold text-green-600 dark:text-green-400">$${loan.totalPaid.toLocaleString()}</p>
+                                    <p class="text-lg font-semibold text-green-600 dark:text-green-400">${formatCurrency(loan.totalPaid)}</p>
                                 </div>
                                 <div>
                                     <p class="text-sm text-gray-600 dark:text-gray-400">Outstanding</p>
-                                    <p class="text-lg font-semibold text-red-600 dark:text-red-400">$${loan.outstandingBalance.toLocaleString()}</p>
+                                    <p class="text-lg font-semibold text-red-600 dark:text-red-400">${formatCurrency(loan.outstandingBalance)}</p>
                                 </div>
                             </div>
                             
@@ -379,15 +379,15 @@ $(document).ready(function() {
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Credit Limit</p>
-                        <p class="text-2xl font-bold text-green-600 dark:text-green-400">$${calculateCreditCardsLimit().toLocaleString()}</p>
+                        <p class="text-2xl font-bold text-green-600 dark:text-green-400">${formatCurrency(calculateCreditCardsLimit())}</p>
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Current Outstanding</p>
-                        <p class="text-2xl font-bold text-red-600 dark:text-red-400">$${calculateCreditCardsTotal().toLocaleString()}</p>
+                        <p class="text-2xl font-bold text-red-600 dark:text-red-400">${formatCurrency(calculateCreditCardsTotal())}</p>
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Available Credit</p>
-                        <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">$${calculateCreditCardsAvailable().toLocaleString()}</p>
+                        <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">${formatCurrency(calculateCreditCardsAvailable())}</p>
                     </div>
                 </div>
                 
@@ -420,19 +420,19 @@ $(document).ready(function() {
                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                                     <div>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">Credit Limit</p>
-                                        <p class="text-lg font-semibold text-gray-900 dark:text-white">$${card.totalCreditLimit.toLocaleString()}</p>
+                                        <p class="text-lg font-semibold text-gray-900 dark:text-white">${formatCurrency(card.totalCreditLimit)}</p>
                                     </div>
                                     <div>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">Outstanding</p>
-                                        <p class="text-lg font-semibold text-red-600 dark:text-red-400">$${card.currentOutstanding.toLocaleString()}</p>
+                                        <p class="text-lg font-semibold text-red-600 dark:text-red-400">${formatCurrency(card.currentOutstanding)}</p>
                                     </div>
                                     <div>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">Available</p>
-                                        <p class="text-lg font-semibold text-green-600 dark:text-green-400">$${card.availableBalance.toLocaleString()}</p>
+                                        <p class="text-lg font-semibold text-green-600 dark:text-green-400">${formatCurrency(card.availableBalance)}</p>
                                     </div>
                                     <div>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">Min Payment</p>
-                                        <p class="text-lg font-semibold text-orange-600 dark:text-orange-400">$${minPayment.toLocaleString()}</p>
+                                        <p class="text-lg font-semibold text-orange-600 dark:text-orange-400">${formatCurrency(minPayment)}</p>
                                     </div>
                                 </div>
                                 
@@ -496,15 +496,15 @@ $(document).ready(function() {
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Principal</p>
-                        <p class="text-2xl font-bold text-orange-600 dark:text-orange-400">$${calculateBankLoansPrincipal().toLocaleString()}</p>
+                        <p class="text-2xl font-bold text-orange-600 dark:text-orange-400">${formatCurrency(calculateBankLoansPrincipal())}</p>
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Paid</p>
-                        <p class="text-2xl font-bold text-green-600 dark:text-green-400">$${calculateBankLoansPaid().toLocaleString()}</p>
+                        <p class="text-2xl font-bold text-green-600 dark:text-green-400">${formatCurrency(calculateBankLoansPaid())}</p>
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Monthly EMI</p>
-                        <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">$${calculateBankLoansEMI().toLocaleString()}</p>
+                        <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">${formatCurrency(calculateBankLoansEMI())}</p>
                     </div>
                 </div>
                 
@@ -537,7 +537,7 @@ $(document).ready(function() {
                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                                     <div>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">Principal</p>
-                                        <p class="text-lg font-semibold text-gray-900 dark:text-white">$${loan.principalAmount.toLocaleString()}</p>
+                                        <p class="text-lg font-semibold text-gray-900 dark:text-white">${formatCurrency(loan.principalAmount)}</p>
                                     </div>
                                     <div>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">Interest Rate</p>
@@ -545,7 +545,7 @@ $(document).ready(function() {
                                     </div>
                                     <div>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">Monthly EMI</p>
-                                        <p class="text-lg font-semibold text-blue-600 dark:text-blue-400">$${emi.toLocaleString()}</p>
+                                        <p class="text-lg font-semibold text-blue-600 dark:text-blue-400">${formatCurrency(emi)}</p>
                                     </div>
                                     <div>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">Months Remaining</p>
@@ -556,11 +556,11 @@ $(document).ready(function() {
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                     <div>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">Total Paid</p>
-                                        <p class="text-lg font-semibold text-green-600 dark:text-green-400">$${loan.totalPaid.toLocaleString()}</p>
+                                        <p class="text-lg font-semibold text-green-600 dark:text-green-400">${formatCurrency(loan.totalPaid)}</p>
                                     </div>
                                     <div>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">Outstanding</p>
-                                        <p class="text-lg font-semibold text-red-600 dark:text-red-400">$${loan.currentOutstanding.toLocaleString()}</p>
+                                        <p class="text-lg font-semibold text-red-600 dark:text-red-400">${formatCurrency(loan.currentOutstanding)}</p>
                                     </div>
                                     <div>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">Tenure</p>

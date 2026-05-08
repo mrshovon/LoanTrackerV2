@@ -257,12 +257,29 @@
                 Loan Tracker
               </h2>
             </div>
-            <button
-              id="closeSidebar"
-              class="lg:hidden p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-            >
-              <i data-lucide="x" class="w-5 h-5"></i>
-            </button>
+            <div class="flex items-center space-x-2">
+              <!-- Currency Selector (Desktop) -->
+              <div class="relative hidden lg:block">
+                <button id="currencyToggleDesktop" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                  <i data-lucide="globe" class="w-4 h-4"></i>
+                  <span id="currentCurrencyDesktop" class="ml-1 text-sm font-medium">USD</span>
+                </button>
+                <div id="currencyDropdownDesktop" class="hidden absolute right-0 mt-2 w-32 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+                  <button onclick="setCurrency('USD')" class="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center">
+                    <span class="mr-2">$</span> USD
+                  </button>
+                  <button onclick="setCurrency('BDT')" class="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center">
+                    <span class="mr-2">৳</span> BDT
+                  </button>
+                </div>
+              </div>
+              <button
+                id="closeSidebar"
+                class="lg:hidden p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+              >
+                <i data-lucide="x" class="w-5 h-5"></i>
+              </button>
+            </div>
           </div>
 
           <!-- Navigation -->
@@ -358,7 +375,21 @@
             <h1 class="text-lg font-semibold text-gray-900 dark:text-white">
               Loan Tracker
             </h1>
-            <div class="w-10"></div>
+            <!-- Currency Selector -->
+            <div class="relative">
+              <button id="currencyToggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                <i data-lucide="globe" class="w-5 h-5"></i>
+                <span id="currentCurrency" class="ml-1 text-sm font-medium">USD</span>
+              </button>
+              <div id="currencyDropdown" class="hidden absolute right-0 mt-2 w-32 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+                <button onclick="setCurrency('USD')" class="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center">
+                  <span class="mr-2">$</span> USD
+                </button>
+                <button onclick="setCurrency('BDT')" class="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center">
+                  <span class="mr-2">৳</span> BDT
+                </button>
+              </div>
+            </div>
           </div>
         </header>
 
@@ -414,7 +445,7 @@
             <div>
               <label
                 class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >Total Loan Amount ($)</label
+                >Total Loan Amount (<span id="personalLoanCurrencySymbol">$</span>)</label
               >
               <input
                 type="number"
@@ -428,7 +459,7 @@
             <div>
               <label
                 class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >Amount Paid ($)</label
+                >Amount Paid (<span id="personalLoanPaidCurrencySymbol">$</span>)</label
               >
               <input
                 type="number"
