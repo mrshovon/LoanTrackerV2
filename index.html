@@ -260,16 +260,18 @@
             <div class="flex items-center space-x-2">
               <!-- Currency Selector (Desktop) -->
               <div class="relative hidden lg:block">
-                <button id="currencyToggleDesktop" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-                  <i data-lucide="globe" class="w-4 h-4"></i>
-                  <span id="currentCurrencyDesktop" class="ml-1 text-sm font-medium">USD</span>
+                <button id="currencyToggleDesktop" class="flex items-center justify-center p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                  <i data-lucide="globe" class="w-5 h-5 mr-2"></i>
+                  <span id="currentCurrencyDesktop" class="text-sm font-medium dark:text-gray-300">USD</span>
                 </button>
                 <div id="currencyDropdownDesktop" class="hidden absolute right-0 mt-2 w-32 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
                   <button onclick="setCurrency('USD')" class="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center">
-                    <span class="mr-2">$</span> USD
+                    <span class="mr-2 dark:text-gray-300">$</span>
+                    <span class="dark:text-gray-300">USD</span>
                   </button>
                   <button onclick="setCurrency('BDT')" class="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center">
-                    <span class="mr-2">৳</span> BDT
+                    <span class="mr-2 dark:text-gray-300">৳</span>
+                    <span class="dark:text-gray-300">BDT</span>
                   </button>
                 </div>
               </div>
@@ -377,16 +379,18 @@
             </h1>
             <!-- Currency Selector -->
             <div class="relative">
-              <button id="currencyToggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-                <i data-lucide="globe" class="w-5 h-5"></i>
-                <span id="currentCurrency" class="ml-1 text-sm font-medium">USD</span>
+              <button id="currencyToggle" class="flex items-center justify-center p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                <i data-lucide="globe" class="w-5 h-5 mr-2"></i>
+                <span id="currentCurrency" class="text-sm font-medium dark:text-gray-300">USD</span>
               </button>
               <div id="currencyDropdown" class="hidden absolute right-0 mt-2 w-32 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
                 <button onclick="setCurrency('USD')" class="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center">
-                  <span class="mr-2">$</span> USD
+                  <span class="mr-2 dark:text-gray-300">$</span>
+                  <span class="dark:text-gray-300">USD</span>
                 </button>
                 <button onclick="setCurrency('BDT')" class="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center">
-                  <span class="mr-2">৳</span> BDT
+                  <span class="mr-2 dark:text-gray-300">৳</span>
+                  <span class="dark:text-gray-300">BDT</span>
                 </button>
               </div>
             </div>
