@@ -256,6 +256,7 @@ $(document).ready(function() {
     };
     
     window.loadPersonalLoans = function() {
+        const personalLoans = app.loans && app.loans.personal ? app.loans.personal : [];
         const html = `
             <div class="space-y-6">
                 <div class="flex justify-between items-center">
@@ -270,7 +271,7 @@ $(document).ready(function() {
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Loans</p>
-                        <p class="text-2xl font-bold text-gray-900 dark:text-white">${app.loans.personal.length}</p>
+                        <p class="text-2xl font-bold text-gray-900 dark:text-white">${personalLoans.length}</p>
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Amount</p>
@@ -284,7 +285,7 @@ $(document).ready(function() {
                 
                 <!-- Loans List -->
                 <div class="space-y-4">
-                    ${app.loans.personal.map(loan => `
+                    ${personalLoans.map(loan => `
                         <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow card-hover">
                             <div class="flex justify-between items-start mb-4">
                                 <div>
@@ -341,7 +342,7 @@ $(document).ready(function() {
                     `).join('')}
                 </div>
                 
-                ${app.loans.personal.length === 0 ? `
+                ${personalLoans.length === 0 ? `
                     <div class="bg-white dark:bg-gray-800 p-12 rounded-lg shadow text-center">
                         <i data-lucide="user" class="w-12 h-12 text-gray-400 mx-auto mb-4"></i>
                         <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Personal Loans</h3>

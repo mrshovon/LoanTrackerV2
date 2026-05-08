@@ -1440,7 +1440,8 @@ $(document).ready(function() {
     init();
     
     // Expose app to global scope for onclick handlers
-    window.app = {
+    // Preserve original properties and add function references
+    Object.assign(window.app, {
         navigateTo: navigateTo,
         showAddPersonalLoanModal: showAddPersonalLoanModal,
         showAddCreditCardModal: showAddCreditCardModal,
@@ -1456,11 +1457,8 @@ $(document).ready(function() {
         editCreditCard: editCreditCard,
         deleteCreditCard: deleteCreditCard,
         editBankLoan: editBankLoan,
-        deleteBankLoan: deleteBankLoan,
-        loans: app.loans,
-        transactions: app.transactions,
-        currentUser: app.currentUser
-    };
+        deleteBankLoan: deleteBankLoan
+    });
     
     // Expose calculation functions to window.appCore object
     window.appCore = {
