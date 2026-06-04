@@ -101,6 +101,7 @@ $(document).ready(function() {
         $('#userEmail').text(app.currentUser.email);
         loadPage(app.currentPage);
         updateNavigation();
+        updateCurrencyDisplay();
     }
     
     function login(email, password) {
