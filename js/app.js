@@ -331,15 +331,15 @@ $(document).ready(function() {
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Principal</p>
-                        <p class="text-2xl font-bold text-orange-600 dark:text-orange-400">$${calculateBankLoansPrincipal().toLocaleString()}</p>
+                        <p class="text-2xl font-bold text-orange-600 dark:text-orange-400">${formatCurrency(calculateBankLoansPrincipal())}</p>
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Paid</p>
-                        <p class="text-2xl font-bold text-green-600 dark:text-green-400">$${calculateBankLoansPaid().toLocaleString()}</p>
+                        <p class="text-2xl font-bold text-green-600 dark:text-green-400">${formatCurrency(calculateBankLoansPaid())}</p>
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Monthly EMI</p>
-                        <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">$${calculateBankLoansEMI().toLocaleString()}</p>
+                        <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">${formatCurrency(calculateBankLoansEMI())}</p>
                     </div>
                 </div>
                 
@@ -372,7 +372,7 @@ $(document).ready(function() {
                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                                     <div>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">Principal</p>
-                                        <p class="text-lg font-semibold text-gray-900 dark:text-white">$${loan.principalAmount.toLocaleString()}</p>
+                                        <p class="text-lg font-semibold text-gray-900 dark:text-white">${formatCurrency(loan.principalAmount)}</p>
                                     </div>
                                     <div>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">Interest Rate</p>
@@ -380,7 +380,7 @@ $(document).ready(function() {
                                     </div>
                                     <div>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">Monthly EMI</p>
-                                        <p class="text-lg font-semibold text-blue-600 dark:text-blue-400">$${emi.toLocaleString()}</p>
+                                        <p class="text-lg font-semibold text-blue-600 dark:text-blue-400">${formatCurrency(emi)}</p>
                                     </div>
                                     <div>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">Months Remaining</p>
@@ -391,11 +391,11 @@ $(document).ready(function() {
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                     <div>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">Total Paid</p>
-                                        <p class="text-lg font-semibold text-green-600 dark:text-green-400">$${loan.totalPaid.toLocaleString()}</p>
+                                        <p class="text-lg font-semibold text-green-600 dark:text-green-400">${formatCurrency(loan.totalPaid)}</p>
                                     </div>
                                     <div>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">Outstanding</p>
-                                        <p class="text-lg font-semibold text-red-600 dark:text-red-400">$${loan.currentOutstanding.toLocaleString()}</p>
+                                        <p class="text-lg font-semibold text-red-600 dark:text-red-400">${formatCurrency(loan.currentOutstanding)}</p>
                                     </div>
                                     <div>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">Tenure</p>
@@ -415,7 +415,7 @@ $(document).ready(function() {
                                 
                                 <div class="flex space-x-2">
                                     <button class="btn bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700" onclick="makeBankLoanPayment('${loan.id}')">
-                                        Pay EMI ($${emi.toLocaleString()})
+                                        Pay EMI (${formatCurrency(emi)})
                                     </button>
                                     <button class="btn bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" onclick="makeBankLoanPayment('${loan.id}', ${emi * 2})">
                                         Pay 2 EMIs
@@ -498,15 +498,15 @@ $(document).ready(function() {
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Payments</p>
-                        <p class="text-2xl font-bold text-green-600 dark:text-green-400">$${calculateTotalPayments().toLocaleString()}</p>
+                        <p class="text-2xl font-bold text-green-600 dark:text-green-400">${formatCurrency(calculateTotalPayments())}</p>
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Withdrawals</p>
-                        <p class="text-2xl font-bold text-red-600 dark:text-red-400">$${calculateTotalWithdrawals().toLocaleString()}</p>
+                        <p class="text-2xl font-bold text-red-600 dark:text-red-400">${formatCurrency(calculateTotalWithdrawals())}</p>
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Net Flow</p>
-                        <p class="text-2xl font-bold ${calculateNetFlow() >= 0 ? 'text-green-600' : 'text-red-600'} dark:text-${calculateNetFlow() >= 0 ? 'green-400' : 'red-400'}">$${Math.abs(calculateNetFlow()).toLocaleString()}</p>
+                        <p class="text-2xl font-bold ${calculateNetFlow() >= 0 ? 'text-green-600' : 'text-red-600'} dark:text-${calculateNetFlow() >= 0 ? 'green-400' : 'red-400'}">${formatCurrency(Math.abs(calculateNetFlow()))}</p>
                     </div>
                 </div>
                 
@@ -545,7 +545,7 @@ $(document).ready(function() {
                                     </div>
                                     <div class="text-right">
                                         <p class="font-semibold ${t.type === 'payment' ? 'text-green-600' : 'text-red-600'}">
-                                            ${t.type === 'payment' ? '-' : '+'}$${t.amount.toLocaleString()}
+                                            ${t.type === 'payment' ? '-' : '+'}${formatCurrency(t.amount)}
                                         </p>
                                     </div>
                                 </div>
@@ -826,7 +826,7 @@ $(document).ready(function() {
                 saveLoansToFirebase();
                 saveTransactionsToFirebase();
                 navigateTo('personal');
-                showToast(`Payment of $${paymentAmount.toLocaleString()} recorded successfully`, 'success');
+                showToast(`Payment of ${formatCurrency(paymentAmount)} recorded successfully`, 'success');
             }
         );
     }
@@ -836,7 +836,7 @@ $(document).ready(function() {
         if (!loan) return;
         
         showConfirmDialog(
-            `Are you sure you want to pay off the full remaining balance of $${loan.outstandingBalance.toLocaleString()} for ${loan.personName}?`,
+            `Are you sure you want to pay off the full remaining balance of ${formatCurrency(loan.outstandingBalance)} for ${loan.personName}?`,
             function() {
                 const paymentAmount = loan.outstandingBalance;
                 
@@ -859,7 +859,7 @@ $(document).ready(function() {
                 saveLoansToFirebase();
                 saveTransactionsToFirebase();
                 navigateTo('personal');
-                showToast(`Loan fully paid off! $${paymentAmount.toLocaleString()} recorded`, 'success');
+                showToast(`Loan fully paid off! ${formatCurrency(paymentAmount)} recorded`, 'success');
             }
         );
     }
@@ -935,7 +935,7 @@ $(document).ready(function() {
                 saveLoansToFirebase();
                 saveTransactionsToFirebase();
                 navigateTo('credit');
-                showToast(`Payment of $${paymentAmount.toLocaleString()} recorded successfully`, 'success');
+                showToast(`Payment of ${formatCurrency(paymentAmount)} recorded successfully`, 'success');
             }
         );
     }
@@ -968,7 +968,7 @@ $(document).ready(function() {
                 saveLoansToFirebase();
                 saveTransactionsToFirebase();
                 navigateTo('credit');
-                showToast(`Purchase of $${purchaseAmount.toLocaleString()} recorded successfully`, 'success');
+                showToast(`Purchase of ${formatCurrency(purchaseAmount)} recorded successfully`, 'success');
             });
         }
 
@@ -1118,7 +1118,7 @@ $(document).ready(function() {
         }
         
         if (paymentAmount > loan.currentOutstanding) {
-            showToast(`Maximum payment amount is $${loan.currentOutstanding.toLocaleString()}`, 'error');
+            showToast(`Maximum payment amount is ${formatCurrency(loan.currentOutstanding)}`, 'error');
             return;
         }
         
@@ -1147,7 +1147,7 @@ $(document).ready(function() {
         saveLoansToFirebase();
         saveTransactionsToFirebase();
         navigateTo('bank');
-        showToast(`EMI payment of $${paymentAmount.toLocaleString()} recorded successfully`, 'success');
+        showToast(`EMI payment of ${formatCurrency(paymentAmount)} recorded successfully`, 'success');
     }
     
     function prepayBankLoan(id) {
@@ -1155,7 +1155,7 @@ $(document).ready(function() {
         if (!loan) return;
         
         showConfirmDialog(
-            `Are you sure you want to prepay the full remaining balance of $${loan.currentOutstanding.toLocaleString()} for ${loan.bankName}?`,
+            `Are you sure you want to prepay the full remaining balance of ${formatCurrency(loan.currentOutstanding)} for ${loan.bankName}?`,
             function() {
                 const paymentAmount = loan.currentOutstanding;
                 
@@ -1179,7 +1179,7 @@ $(document).ready(function() {
                 saveLoansToFirebase();
                 saveTransactionsToFirebase();
                 navigateTo('bank');
-                showToast(`Loan fully prepaid! $${paymentAmount.toLocaleString()} recorded`, 'success');
+                showToast(`Loan fully prepaid! ${formatCurrency(paymentAmount)} recorded`, 'success');
             }
         );
     }

@@ -211,7 +211,7 @@ $(document).ready(function() {
                 <!-- Quick Actions -->
                 <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                     <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <button class="btn bg-blue-600 text-white p-4 rounded-lg hover:bg-blue-700 flex items-center justify-center" onclick="navigateTo('personal')">
                             <i data-lucide="user-plus" class="w-6 h-6 mr-2"></i>
                             <span>Add Personal Loan</span>
@@ -223,6 +223,10 @@ $(document).ready(function() {
                         <button class="btn bg-orange-600 text-white p-4 rounded-lg hover:bg-orange-700 flex items-center justify-center" onclick="navigateTo('bank')">
                             <i data-lucide="building" class="w-6 h-6 mr-2"></i>
                             <span>Add Bank Loan</span>
+                        </button>
+                        <button class="btn bg-purple-600 text-white p-4 rounded-lg hover:bg-purple-700 flex items-center justify-center" onclick="navigateTo('credit-balance')">
+                            <i data-lucide="shield-check" class="w-6 h-6 mr-2"></i>
+                            <span>Credit balance (বাকি)</span>
                         </button>
                     </div>
                 </div>
@@ -650,7 +654,7 @@ $(document).ready(function() {
                                 
                                 <div class="flex space-x-2">
                                     <button class="btn bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700" onclick="makeBankLoanPayment('${loan.id}')">
-                                        Pay EMI ($${emi.toLocaleString()})
+                                        Pay EMI (${formatCurrency(emi)})
                                     </button>
                                     <button class="btn bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" onclick="makeBankLoanPayment('${loan.id}', ${emi * 2})">
                                         Pay 2 EMIs
@@ -733,15 +737,15 @@ $(document).ready(function() {
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Payments</p>
-                        <p class="text-2xl font-bold text-green-600 dark:text-green-400">$${calculateTotalPayments().toLocaleString()}</p>
+                        <p class="text-2xl font-bold text-green-600 dark:text-green-400">${formatCurrency(calculateTotalPayments())}</p>
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Withdrawals</p>
-                        <p class="text-2xl font-bold text-red-600 dark:text-red-400">$${calculateTotalWithdrawals().toLocaleString()}</p>
+                        <p class="text-2xl font-bold text-red-600 dark:text-red-400">${formatCurrency(calculateTotalWithdrawals())}</p>
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Net Flow</p>
-                        <p class="text-2xl font-bold ${calculateNetFlow() >= 0 ? 'text-green-600' : 'text-red-600'} dark:text-${calculateNetFlow() >= 0 ? 'green-400' : 'red-400'}">$${Math.abs(calculateNetFlow()).toLocaleString()}</p>
+                        <p class="text-2xl font-bold ${calculateNetFlow() >= 0 ? 'text-green-600' : 'text-red-600'} dark:text-${calculateNetFlow() >= 0 ? 'green-400' : 'red-400'}">${formatCurrency(Math.abs(calculateNetFlow()))}</p>
                     </div>
                 </div>
                 
@@ -780,7 +784,7 @@ $(document).ready(function() {
                                     </div>
                                     <div class="text-right">
                                         <p class="font-semibold ${t.type === 'payment' ? 'text-green-600' : 'text-red-600'}">
-                                            ${t.type === 'payment' ? '-' : '+'}$${t.amount.toLocaleString()}
+                                            ${t.type === 'payment' ? '-' : '+'}${formatCurrency(t.amount)}
                                         </p>
                                     </div>
                                 </div>
@@ -944,7 +948,7 @@ $(document).ready(function() {
                                 </div>
                                 <div class="text-right">
                                     <p class="font-semibold ${t.type === 'payment' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
-                                        ${t.type === 'payment' ? '+' : '-'}$${t.amount.toLocaleString()}
+                                        ${t.type === 'payment' ? '+' : '-'}${formatCurrency(t.amount)}
                                     </p>
                                     <p class="text-sm text-gray-500 dark:text-gray-400">${t.type === 'payment' ? 'Payment' : t.type === 'withdrawal' ? (type === 'credit' ? 'Purchase' : 'Loan Disbursement') : 'Other'}</p>
                                 </div>
