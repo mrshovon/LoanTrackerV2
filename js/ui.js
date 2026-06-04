@@ -137,6 +137,9 @@ $(document).ready(function() {
             case 'credit':
                 loadCreditCards();
                 break;
+            case 'credit-balance':
+                loadCreditBalance();
+                break;
             case 'bank':
                 loadBankLoans();
                 break;
@@ -251,6 +254,73 @@ $(document).ready(function() {
             </div>
         `;
         
+        $('#content').html(html);
+        lucide.createIcons();
+    };
+    
+    window.loadCreditBalance = function() {
+        const shops = app.loans && app.loans.shops ? app.loans.shops : [];
+        const html = `
+            <div class="space-y-6">
+                <div class="flex justify-between items-center">
+                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Credit balance (বাকি)</h1>
+                    <div class="flex items-center space-x-2">
+                        <button class="btn bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 inline-flex items-center whitespace-nowrap" onclick="showAddShopModal()">
+                            <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                            Add Shop
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Outstanding (All Shops)</p>
+                        <p class="text-2xl font-bold text-red-600 dark:text-red-400">${formatCurrency((app.loans.shops || []).reduce((s, sh) => s + (sh.currentOutstanding || 0), 0))}</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Credit</p>
+                        <p class="text-2xl font-bold text-green-600 dark:text-green-400">${formatCurrency((app.loans.shops || []).reduce((s, sh) => s + (sh.totalCredit || 0), 0))}</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Paid</p>
+                        <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">${formatCurrency((app.loans.shops || []).reduce((s, sh) => s + (sh.totalPaid || 0), 0))}</p>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Shops</h2>
+                    <div class="space-y-4">
+                        ${shops.length === 0 ? `
+                            <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+                                <i data-lucide="store" class="w-12 h-12 mx-auto mb-4"></i>
+                                <p>No shops have been added yet.</p>
+                            </div>
+                        ` : shops.map(shop => `
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <div>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">Shop</p>
+                                    <p class="font-semibold text-gray-900 dark:text-white">${shop.name}</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">Outstanding</p>
+                                    <p class="font-semibold text-red-600 dark:text-red-400">${formatCurrency(shop.currentOutstanding || 0)}</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">Total Credit</p>
+                                    <p class="font-semibold text-green-600 dark:text-green-400">${formatCurrency(shop.totalCredit || 0)}</p>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button class="btn bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700" onclick="showShopTransactionModal('${shop.id}','payment','${shop.name}')">Pay</button>
+                                    <button class="btn bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700" onclick="showShopTransactionModal('${shop.id}','credit','${shop.name}')">Add Credit</button>
+                                    <button class="btn bg-gray-200 text-gray-700 px-3 py-2 rounded-md" onclick="showLoanHistory('shop','${shop.id}','${shop.name}')">History</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+
         $('#content').html(html);
         lucide.createIcons();
     };
@@ -582,7 +652,7 @@ $(document).ready(function() {
                                     <button class="btn bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700" onclick="makeBankLoanPayment('${loan.id}')">
                                         Pay EMI ($${emi.toLocaleString()})
                                     </button>
-                                    <button class="btn bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" onclick="makeBankLoanPayment('${loan.id}', emi * 2)">
+                                    <button class="btn bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" onclick="makeBankLoanPayment('${loan.id}', ${emi * 2})">
                                         Pay 2 EMIs
                                     </button>
                                     <button class="btn bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700" onclick="prepayBankLoan('${loan.id}')">
@@ -758,6 +828,69 @@ $(document).ready(function() {
     window.closeBankLoanModal = function() {
         $('#bankLoanModal').addClass('hidden');
     };
+
+    // Shop modals
+    window.showAddShopModal = function() {
+        $('#addShopForm')[0].reset();
+        $('#addShopModal').removeClass('hidden');
+        lucide.createIcons();
+    };
+
+    window.closeAddShopModal = function() {
+        $('#addShopModal').addClass('hidden');
+    };
+
+    window.showShopTransactionModal = function(shopId, type, name) {
+        $('#shopTransactionForm')[0].reset();
+        $('#shopTransactionShopId').val(shopId);
+        $('#shopTransactionType').val(type);
+        $('#shopTransactionTitle').text(`${type === 'payment' ? 'Pay to' : 'Add credit to'} ${name}`);
+        $('#shopTransactionModal').removeClass('hidden');
+        lucide.createIcons();
+    };
+
+    window.closeShopTransactionModal = function() {
+        $('#shopTransactionModal').addClass('hidden');
+    };
+
+    // Shop form handlers
+    $('#addShopForm').submit(function(e) {
+        e.preventDefault();
+        const name = $('#shopName').val().trim();
+        if (!name) {
+            showToast('Please enter a shop name', 'error');
+            return;
+        }
+        if (window.appCore && window.appCore.addShop) {
+            window.appCore.addShop(name);
+        }
+        closeAddShopModal();
+    });
+
+    $('#shopTransactionForm').submit(function(e) {
+        e.preventDefault();
+        const shopId = $('#shopTransactionShopId').val();
+        const type = $('#shopTransactionType').val();
+        const amount = parseFloat($('#shopTransactionAmount').val());
+        const description = $('#shopTransactionDescription').val().trim();
+
+        if (!shopId || !amount || amount <= 0) {
+            showToast('Please enter a valid amount', 'error');
+            return;
+        }
+
+        if (type === 'credit') {
+            if (window.appCore && window.appCore.addShopCredit) {
+                window.appCore.addShopCredit(shopId, amount, description);
+            }
+        } else if (type === 'payment') {
+            if (window.appCore && window.appCore.makeShopPayment) {
+                window.appCore.makeShopPayment(shopId, amount, description);
+            }
+        }
+
+        closeShopTransactionModal();
+    });
     
     // History functionality
     window.showLoanHistory = function(type, id, name) {
@@ -766,17 +899,19 @@ $(document).ready(function() {
         
         // Better filtering logic - match by loan ID or exact name
         const relatedTransactions = app.transactions.filter(t => {
-            if (type === 'personal') {
+             if (type === 'personal') {
                 return t.category === 'personal' && 
                        (t.description.includes(name) || t.loanId === id);
-            } else if (type === 'credit') {
+             } else if (type === 'credit') {
                 return t.category === 'credit' && 
                        (t.description.includes(name) || t.loanId === id);
-            } else if (type === 'bank') {
+             } else if (type === 'bank') {
                 return t.category === 'bank' && 
                        (t.description.includes(name) || t.loanId === id);
+             } else if (type === 'shop') {
+                 return t.category === 'shop' && (t.description.includes(name) || t.shopId === id);
             }
-            return false;
+             return false;
         });
         
         console.log('Filtered transactions:', relatedTransactions);

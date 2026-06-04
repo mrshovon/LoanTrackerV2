@@ -24,7 +24,8 @@ $(document).ready(function() {
         loans: {
             personal: [],
             credit: [],
-            bank: []
+            bank: [],
+            shops: []
         },
         transactions: []
     };
@@ -246,6 +247,18 @@ $(document).ready(function() {
                 }
             }
         });
+
+        // Load shops (credit balance entries)
+        userRef.child('shops').on('value', function(snapshot) {
+            const shops = snapshot.val() || [];
+            // ensure array
+            app.loans.shops = Array.isArray(shops) ? shops : Object.values(shops);
+
+            // refresh page if viewing credit-balance
+            if ($('#mainApp').is(':visible') && app.currentPage === 'credit-balance') {
+                loadCreditBalance && loadCreditBalance();
+            }
+        });
     }
     
     function saveLoansToFirebase() {
@@ -264,6 +277,15 @@ $(document).ready(function() {
         database.ref('userData/' + app.currentUser.uid + '/transactions').set(app.transactions, function(error) {
             if (error) {
                 console.error('Error saving transactions:', error);
+            }
+        });
+    }
+
+    function saveShopsToFirebase() {
+        if (!app.currentUser) return;
+        database.ref('userData/' + app.currentUser.uid + '/shops').set(app.loans.shops, function(error) {
+            if (error) {
+                console.error('Error saving shops:', error);
             }
         });
     }
@@ -394,7 +416,7 @@ $(document).ready(function() {
                                     <button class="btn bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700" onclick="makeBankLoanPayment('${loan.id}')">
                                         Pay EMI ($${emi.toLocaleString()})
                                     </button>
-                                    <button class="btn bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" onclick="makeBankLoanPayment('${loan.id}', emi * 2)">
+                                    <button class="btn bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" onclick="makeBankLoanPayment('${loan.id}', ${emi * 2})">
                                         Pay 2 EMIs
                                     </button>
                                     <button class="btn bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700" onclick="prepayBankLoan('${loan.id}')">
@@ -747,6 +769,20 @@ $(document).ready(function() {
         lucide.createIcons();
     }
     
+    function updatePersonalLoan(id, personName, totalLoanAmount, totalPaid) {
+        const loan = app.loans.personal.find(l => l.id === id);
+        if (!loan) return;
+
+        loan.personName = personName;
+        loan.totalLoanAmount = totalLoanAmount;
+        loan.totalPaid = totalPaid;
+        loan.outstandingBalance = Math.max(0, totalLoanAmount - totalPaid);
+
+        saveLoansToFirebase();
+        navigateTo('personal');
+        showToast('Personal loan updated successfully', 'success');
+    }
+    
     function deletePersonalLoan(id) {
         showConfirmDialog(
             'Are you sure you want to delete this personal loan? All related transactions will also be deleted.',
@@ -841,6 +877,20 @@ $(document).ready(function() {
         $('#editCreditCardModal').removeClass('hidden');
         lucide.createIcons();
     }
+
+    function updateCreditCard(id, cardName, totalCreditLimit, currentOutstanding) {
+        const card = app.loans.credit.find(c => c.id === id);
+        if (!card) return;
+
+        card.cardName = cardName;
+        card.totalCreditLimit = totalCreditLimit;
+        card.currentOutstanding = currentOutstanding;
+        card.availableBalance = Math.max(0, totalCreditLimit - currentOutstanding);
+
+        saveLoansToFirebase();
+        navigateTo('credit');
+        showToast('Credit card updated successfully', 'success');
+    }
     
     function deleteCreditCard(id) {
         showConfirmDialog(
@@ -918,9 +968,81 @@ $(document).ready(function() {
                 saveTransactionsToFirebase();
                 navigateTo('credit');
                 showToast(`Purchase of $${purchaseAmount.toLocaleString()} recorded successfully`, 'success');
+            });
+        }
+
+            // Shops (credit balance with vendors) functions
+            function addShop(name) {
+                if (!app.loans) app.loans = { personal: [], credit: [], bank: [], shops: [] };
+                if (!app.loans.shops) app.loans.shops = [];
+
+                const newShop = {
+                    id: Date.now().toString(),
+                    name: name,
+                    createdAt: new Date().toISOString(),
+                    totalCredit: 0,
+                    totalPaid: 0,
+                    currentOutstanding: 0
+                };
+
+                app.loans.shops.push(newShop);
+                saveShopsToFirebase();
+                showToast('Shop added successfully', 'success');
+                loadCreditBalance && loadCreditBalance();
             }
-        );
-    }
+
+            function addShopCredit(shopId, amount, description) {
+                const shop = app.loans.shops.find(s => s.id === shopId);
+                if (!shop) return;
+
+                shop.totalCredit += amount;
+                shop.currentOutstanding += amount;
+
+                const transaction = {
+                    id: Date.now().toString(),
+                    type: 'withdrawal',
+                    amount: amount,
+                    category: 'shop',
+                    description: description || `Credit from ${shop.name}`,
+                    date: new Date().toISOString(),
+                    shopId: shop.id
+                };
+                app.transactions.push(transaction);
+
+                saveShopsToFirebase();
+                saveTransactionsToFirebase();
+                showToast(`Credit of ${formatCurrency(amount)} added to ${shop.name}`, 'success');
+                loadCreditBalance && loadCreditBalance();
+            }
+
+            function makeShopPayment(shopId, amount, description) {
+                const shop = app.loans.shops.find(s => s.id === shopId);
+                if (!shop) return;
+
+                if (amount > shop.currentOutstanding) {
+                    showToast('Payment exceeds current outstanding', 'error');
+                    return;
+                }
+
+                shop.totalPaid += amount;
+                shop.currentOutstanding -= amount;
+
+                const transaction = {
+                    id: Date.now().toString(),
+                    type: 'payment',
+                    amount: amount,
+                    category: 'shop',
+                    description: description || `Payment to ${shop.name}`,
+                    date: new Date().toISOString(),
+                    shopId: shop.id
+                };
+                app.transactions.push(transaction);
+
+                saveShopsToFirebase();
+                saveTransactionsToFirebase();
+                showToast(`Payment of ${formatCurrency(amount)} recorded for ${shop.name}`, 'success');
+                loadCreditBalance && loadCreditBalance();
+            }
     
     function editBankLoan(id) {
         const loan = app.loans.bank.find(l => l.id === id);
@@ -937,6 +1059,35 @@ $(document).ready(function() {
         // Show modal
         $('#editBankLoanModal').removeClass('hidden');
         lucide.createIcons();
+    }
+
+    function updateBankLoan(id, bankName, principalAmount, annualInterestRate, tenureMonths, totalPaid) {
+        const loan = app.loans.bank.find(l => l.id === id);
+        if (!loan) return;
+
+        loan.bankName = bankName;
+        loan.principalAmount = principalAmount;
+        loan.annualInterestRate = annualInterestRate;
+        loan.tenureMonths = tenureMonths;
+        loan.totalPaid = totalPaid;
+
+        const emi = calculateEMI(principalAmount, annualInterestRate, tenureMonths);
+        const monthsPaid = Math.floor(totalPaid / emi);
+        const monthlyRate = annualInterestRate / 12 / 100;
+        let remainingPrincipal = principalAmount;
+
+        for (let i = 0; i < monthsPaid && remainingPrincipal > 0; i++) {
+            const interestPayment = remainingPrincipal * monthlyRate;
+            const principalPayment = Math.min(emi - interestPayment, remainingPrincipal);
+            remainingPrincipal -= principalPayment;
+        }
+
+        loan.currentOutstanding = Math.max(0, remainingPrincipal);
+        loan.monthsRemaining = Math.max(0, tenureMonths - monthsPaid);
+
+        saveLoansToFirebase();
+        navigateTo('bank');
+        showToast('Bank loan updated successfully', 'success');
     }
     
     function deleteBankLoan(id) {
@@ -1198,6 +1349,59 @@ $(document).ready(function() {
             
             closePersonalLoanModal();
             navigateTo('personal');
+        });
+
+        $('#editPersonalLoanForm').submit(function(e) {
+            e.preventDefault();
+
+            const loanId = $('#editPersonalLoanId').val();
+            const personName = $('#editPersonName').val();
+            const totalLoanAmount = parseFloat($('#editTotalLoanAmount').val());
+            const totalPaid = parseFloat($('#editAmountPaid').val());
+
+            if (!loanId || !personName || isNaN(totalLoanAmount) || isNaN(totalPaid)) {
+                showToast('Please fill in all fields correctly', 'error');
+                return;
+            }
+
+            updatePersonalLoan(loanId, personName, totalLoanAmount, totalPaid);
+            closeEditPersonalLoanModal();
+        });
+
+        $('#editCreditCardForm').submit(function(e) {
+            e.preventDefault();
+
+            const cardId = $('#editCreditCardId').val();
+            const cardName = $('#editCardName').val();
+            const totalCreditLimit = parseFloat($('#editCreditLimit').val());
+            const currentOutstanding = parseFloat($('#editCurrentOutstanding').val());
+
+            if (!cardId || !cardName || isNaN(totalCreditLimit) || isNaN(currentOutstanding)) {
+                showToast('Please fill in all fields correctly', 'error');
+                return;
+            }
+
+            updateCreditCard(cardId, cardName, totalCreditLimit, currentOutstanding);
+            closeEditCreditCardModal();
+        });
+
+        $('#editBankLoanForm').submit(function(e) {
+            e.preventDefault();
+
+            const loanId = $('#editBankLoanId').val();
+            const bankName = $('#editBankName').val();
+            const principalAmount = parseFloat($('#editPrincipalAmount').val());
+            const annualInterestRate = parseFloat($('#editAnnualInterestRate').val());
+            const tenureMonths = parseInt($('#editTenureMonths').val());
+            const totalPaid = parseFloat($('#editTotalPaid').val());
+
+            if (!loanId || !bankName || isNaN(principalAmount) || isNaN(annualInterestRate) || isNaN(tenureMonths) || isNaN(totalPaid)) {
+                showToast('Please fill in all fields correctly', 'error');
+                return;
+            }
+
+            updateBankLoan(loanId, bankName, principalAmount, annualInterestRate, tenureMonths, totalPaid);
+            closeEditBankLoanModal();
         });
         
         $('#creditCardForm').submit(function(e) {
@@ -1502,6 +1706,57 @@ $(document).ready(function() {
                     loanId: 'bank-loan-2'
                 }
             ];
+
+            // Sample shops (credit from vendors)
+            app.loans.shops = [
+                {
+                    id: 'shop-1',
+                    name: 'Mama Store',
+                    createdAt: '2024-01-01T00:00:00.000Z',
+                    totalCredit: 800,
+                    totalPaid: 200,
+                    currentOutstanding: 600
+                },
+                {
+                    id: 'shop-2',
+                    name: 'Rafi Mart',
+                    createdAt: '2024-01-03T00:00:00.000Z',
+                    totalCredit: 400,
+                    totalPaid: 100,
+                    currentOutstanding: 300
+                }
+            ];
+
+            // Add shop-related transactions
+            app.transactions = app.transactions.concat([
+                {
+                    id: '13',
+                    type: 'withdrawal',
+                    amount: 800,
+                    category: 'shop',
+                    description: 'Credit - Mama Store',
+                    date: '2024-01-02T00:00:00.000Z',
+                    shopId: 'shop-1'
+                },
+                {
+                    id: '14',
+                    type: 'payment',
+                    amount: 200,
+                    category: 'shop',
+                    description: 'Payment - Mama Store',
+                    date: '2024-01-15T00:00:00.000Z',
+                    shopId: 'shop-1'
+                },
+                {
+                    id: '15',
+                    type: 'withdrawal',
+                    amount: 400,
+                    category: 'shop',
+                    description: 'Credit - Rafi Mart',
+                    date: '2024-01-04T00:00:00.000Z',
+                    shopId: 'shop-2'
+                }
+            ]);
         }
         
         // Save sample data to Firebase for demo user
@@ -1575,6 +1830,9 @@ $(document).ready(function() {
         deleteBankLoan: deleteBankLoan,
         makeBankLoanPayment: makeBankLoanPayment,
         prepayBankLoan: prepayBankLoan,
+        addShop: addShop,
+        addShopCredit: addShopCredit,
+        makeShopPayment: makeShopPayment,
         calculateTotalDebt: calculateTotalDebt,
         calculatePersonalLoansTotal: calculatePersonalLoansTotal,
         calculatePersonalLoansPaid: calculatePersonalLoansPaid,
