@@ -140,6 +140,9 @@ $(document).ready(function() {
             case 'credit-balance':
                 loadCreditBalance();
                 break;
+            case 'budget':
+                loadBudget();
+                break;
             case 'bank':
                 loadBankLoans();
                 break;
@@ -585,7 +588,7 @@ $(document).ready(function() {
                 <!-- Bank Loans List -->
                 <div class="space-y-4">
                     ${bankLoans.map(loan => {
-                        const emi = calculateEMI(loan.principalAmount, loan.annualInterestRate, loan.tenureMonths);
+                        const emi = calculateEMI(loan.principalAmount, loan.annualInterestRate, loan.tenureMonths, loan.interestMethod || 'reducing');
                         const progressPercentage = ((loan.tenureMonths - loan.monthsRemaining) / loan.tenureMonths) * 100;
                         
                         return `
@@ -615,7 +618,7 @@ $(document).ready(function() {
                                     </div>
                                     <div>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">Interest Rate</p>
-                                        <p class="text-lg font-semibold text-orange-600 dark:text-orange-400">${loan.annualInterestRate}%</p>
+                                        <p class="text-lg font-semibold text-orange-600 dark:text-orange-400">${loan.annualInterestRate}% <span class="text-xs font-normal text-gray-500 dark:text-gray-400">(${(loan.interestMethod || 'reducing') === 'flat' ? 'Flat' : 'Reducing'})</span></p>
                                     </div>
                                     <div>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">Monthly EMI</p>
@@ -895,7 +898,328 @@ $(document).ready(function() {
 
         closeShopTransactionModal();
     });
-    
+
+    // ---- Budget feature ----
+
+    // Selected statement month (UI-only state), default to current month
+    window.budgetSelectedMonth = new Date().toISOString().slice(0, 7);
+
+    function getBudget() {
+        const b = app.budget || {};
+        return {
+            categories: b.categories || [],
+            recurring: b.recurring || [],
+            entries: b.entries || []
+        };
+    }
+
+    function formatMonthLabel(monthKey) {
+        const [y, m] = monthKey.split('-');
+        const d = new Date(parseInt(y), parseInt(m) - 1, 1);
+        return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    }
+
+    // Items (recurring + one-off) for the selected month
+    function getBudgetItemsForMonth(monthKey) {
+        const b = getBudget();
+        const recurring = b.recurring.map(i => Object.assign({}, i, { isRecurring: true }));
+        const oneOff = b.entries
+            .filter(e => e.month === monthKey)
+            .map(i => Object.assign({}, i, { isRecurring: false }));
+        return recurring.concat(oneOff);
+    }
+
+    window.loadBudget = function() {
+        const b = getBudget();
+        const monthKey = window.budgetSelectedMonth;
+        const items = getBudgetItemsForMonth(monthKey);
+
+        const categoryName = (id) => {
+            const c = b.categories.find(cat => cat.id === id);
+            return c ? c.name : 'Uncategorized';
+        };
+
+        const incomeItems = items.filter(i => i.type === 'income');
+        const expenseItems = items.filter(i => i.type === 'expense');
+        const totalIncome = incomeItems.reduce((s, i) => s + (i.amount || 0), 0);
+        const totalExpense = expenseItems.reduce((s, i) => s + (i.amount || 0), 0);
+        const net = totalIncome - totalExpense;
+
+        const renderItemRow = (i) => `
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div>
+                    <p class="font-semibold text-gray-900 dark:text-white">${i.name}
+                        ${i.isRecurring ? '<span class="ml-2 text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">Fixed</span>' : ''}
+                    </p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">${categoryName(i.categoryId)}</p>
+                </div>
+                <div class="md:col-span-2">
+                    <p class="text-sm text-gray-600 dark:text-gray-400">${i.remark ? i.remark : '<span class="italic text-gray-400">No remark</span>'}</p>
+                </div>
+                <div>
+                    <p class="font-semibold ${i.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
+                        ${i.type === 'income' ? '+' : '-'}${formatCurrency(i.amount || 0)}
+                    </p>
+                </div>
+                <div class="flex items-center gap-2 justify-end">
+                    <button class="btn bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 rounded-md" onclick="editBudgetItem('${i.id}', ${i.isRecurring})" title="Edit">
+                        <i data-lucide="pencil" class="w-4 h-4"></i>
+                    </button>
+                    <button class="btn bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 px-2 py-1 rounded-md" onclick="deleteBudgetItem('${i.id}', ${i.isRecurring})" title="Delete">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Category budget vs actual for the selected month
+        const categoryRows = b.categories.map(cat => {
+            const actual = items
+                .filter(i => i.categoryId === cat.id)
+                .reduce((s, i) => s + (i.amount || 0), 0);
+            const remaining = (cat.monthlyBudget || 0) - actual;
+            return `
+                <div class="grid grid-cols-2 md:grid-cols-6 gap-2 items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div class="md:col-span-2">
+                        <p class="font-semibold text-gray-900 dark:text-white">${cat.name}</p>
+                    </div>
+                    <div>
+                        <span class="text-xs px-2 py-0.5 rounded-full ${cat.type === 'income' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'}">${cat.type}</span>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Budget</p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">${formatCurrency(cat.monthlyBudget || 0)}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Actual</p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">${formatCurrency(actual)}</p>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Remaining</p>
+                            <p class="text-sm font-medium ${remaining >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">${formatCurrency(remaining)}</p>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <button class="btn bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 rounded-md" onclick="editBudgetCategory('${cat.id}')" title="Edit">
+                                <i data-lucide="pencil" class="w-4 h-4"></i>
+                            </button>
+                            <button class="btn bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 px-2 py-1 rounded-md" onclick="deleteBudgetCategory('${cat.id}')" title="Delete">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        const html = `
+            <div class="space-y-6">
+                <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
+                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Budget</h1>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <input type="month" value="${monthKey}" onchange="setBudgetMonth(this.value)"
+                            class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" />
+                        <button class="btn bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 inline-flex items-center whitespace-nowrap" onclick="showBudgetItemModal()">
+                            <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                            Add Item
+                        </button>
+                        <button class="btn bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 inline-flex items-center whitespace-nowrap" onclick="showBudgetCategoryModal()">
+                            <i data-lucide="folder-plus" class="w-4 h-4 mr-2"></i>
+                            Add Category
+                        </button>
+                    </div>
+                </div>
+
+                <p class="text-gray-600 dark:text-gray-400">Statement for <span class="font-semibold">${formatMonthLabel(monthKey)}</span></p>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Income</p>
+                        <p class="text-2xl font-bold text-green-600 dark:text-green-400">${formatCurrency(totalIncome)}</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Expense</p>
+                        <p class="text-2xl font-bold text-red-600 dark:text-red-400">${formatCurrency(totalExpense)}</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Net (Income - Expense)</p>
+                        <p class="text-2xl font-bold ${net >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">${net >= 0 ? '' : '-'}${formatCurrency(Math.abs(net))}</p>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Category Budgets</h2>
+                    <div class="space-y-3">
+                        ${b.categories.length === 0 ? `
+                            <div class="text-center py-6 text-gray-500 dark:text-gray-400">
+                                <i data-lucide="folder" class="w-10 h-10 mx-auto mb-3"></i>
+                                <p>No categories yet. Add one to set monthly budget targets.</p>
+                            </div>
+                        ` : categoryRows}
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                    <h2 class="text-xl font-semibold text-green-700 dark:text-green-400 mb-4">Income</h2>
+                    <div class="space-y-3">
+                        ${incomeItems.length === 0 ? `
+                            <div class="text-center py-6 text-gray-500 dark:text-gray-400">
+                                <p>No income recorded for this month.</p>
+                            </div>
+                        ` : incomeItems.map(renderItemRow).join('')}
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                    <h2 class="text-xl font-semibold text-red-700 dark:text-red-400 mb-4">Expenses</h2>
+                    <div class="space-y-3">
+                        ${expenseItems.length === 0 ? `
+                            <div class="text-center py-6 text-gray-500 dark:text-gray-400">
+                                <p>No expenses recorded for this month.</p>
+                            </div>
+                        ` : expenseItems.map(renderItemRow).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        $('#content').html(html);
+        lucide.createIcons();
+    };
+
+    // Populate the category select in the item modal for the chosen type
+    window.populateBudgetItemCategories = function(selectedId) {
+        const type = $('#budgetItemType').val();
+        const b = getBudget();
+        const options = b.categories
+            .filter(c => c.type === type)
+            .map(c => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${c.name}</option>`)
+            .join('');
+        $('#budgetItemCategory').html(`<option value="">Uncategorized</option>` + options);
+    };
+
+    // Toggle the month field visibility based on the recurring checkbox
+    window.updateBudgetItemMonthVisibility = function() {
+        if ($('#budgetItemRecurring').is(':checked')) {
+            $('#budgetItemMonthWrapper').addClass('hidden');
+        } else {
+            $('#budgetItemMonthWrapper').removeClass('hidden');
+        }
+    };
+
+    window.showBudgetItemModal = function() {
+        $('#budgetItemForm')[0].reset();
+        $('#budgetItemId').val('');
+        $('#budgetItemIsRecurring').val('false');
+        $('#budgetItemType').val('expense');
+        $('#budgetItemRecurring').prop('checked', false);
+        $('#budgetItemMonth').val(window.budgetSelectedMonth);
+        $('#budgetItemTitle').text('Add Item');
+        populateBudgetItemCategories();
+        updateBudgetItemMonthVisibility();
+        $('#budgetItemModal').removeClass('hidden');
+        lucide.createIcons();
+    };
+
+    window.showEditBudgetItemModal = function(id, isRecurring) {
+        const b = getBudget();
+        const list = isRecurring ? b.recurring : b.entries;
+        const item = list.find(i => i.id === id);
+        if (!item) return;
+        $('#budgetItemForm')[0].reset();
+        $('#budgetItemId').val(item.id);
+        $('#budgetItemIsRecurring').val(isRecurring ? 'true' : 'false');
+        $('#budgetItemType').val(item.type);
+        $('#budgetItemName').val(item.name);
+        $('#budgetItemAmount').val(item.amount);
+        $('#budgetItemRemark').val(item.remark || '');
+        $('#budgetItemRecurring').prop('checked', !!isRecurring);
+        $('#budgetItemMonth').val(item.month || window.budgetSelectedMonth);
+        $('#budgetItemTitle').text('Edit Item');
+        populateBudgetItemCategories(item.categoryId);
+        updateBudgetItemMonthVisibility();
+        $('#budgetItemModal').removeClass('hidden');
+        lucide.createIcons();
+    };
+
+    window.closeBudgetItemModal = function() {
+        $('#budgetItemModal').addClass('hidden');
+    };
+
+    window.showBudgetCategoryModal = function() {
+        $('#budgetCategoryForm')[0].reset();
+        $('#budgetCategoryId').val('');
+        $('#budgetCategoryType').val('expense');
+        $('#budgetCategoryTitle').text('Add Category');
+        $('#budgetCategoryModal').removeClass('hidden');
+        lucide.createIcons();
+    };
+
+    window.showEditBudgetCategoryModal = function(id) {
+        const b = getBudget();
+        const cat = b.categories.find(c => c.id === id);
+        if (!cat) return;
+        $('#budgetCategoryForm')[0].reset();
+        $('#budgetCategoryId').val(cat.id);
+        $('#budgetCategoryName').val(cat.name);
+        $('#budgetCategoryType').val(cat.type);
+        $('#budgetCategoryAmount').val(cat.monthlyBudget || 0);
+        $('#budgetCategoryTitle').text('Edit Category');
+        $('#budgetCategoryModal').removeClass('hidden');
+        lucide.createIcons();
+    };
+
+    window.closeBudgetCategoryModal = function() {
+        $('#budgetCategoryModal').addClass('hidden');
+    };
+
+    // Budget form handlers
+    $('#budgetCategoryForm').submit(function(e) {
+        e.preventDefault();
+        const id = $('#budgetCategoryId').val();
+        const name = $('#budgetCategoryName').val().trim();
+        const type = $('#budgetCategoryType').val();
+        const monthlyBudget = parseFloat($('#budgetCategoryAmount').val()) || 0;
+        if (!name) {
+            showToast('Please enter a category name', 'error');
+            return;
+        }
+        if (id) {
+            window.appCore && window.appCore.updateBudgetCategory && window.appCore.updateBudgetCategory(id, name, type, monthlyBudget);
+        } else {
+            window.appCore && window.appCore.addBudgetCategory && window.appCore.addBudgetCategory(name, type, monthlyBudget);
+        }
+        closeBudgetCategoryModal();
+    });
+
+    $('#budgetItemForm').submit(function(e) {
+        e.preventDefault();
+        const id = $('#budgetItemId').val();
+        const isRecurring = $('#budgetItemRecurring').is(':checked');
+        const name = $('#budgetItemName').val().trim();
+        const amount = parseFloat($('#budgetItemAmount').val());
+        if (!name || isNaN(amount) || amount <= 0) {
+            showToast('Please enter a valid name and amount', 'error');
+            return;
+        }
+        const data = {
+            type: $('#budgetItemType').val(),
+            name: name,
+            amount: amount,
+            categoryId: $('#budgetItemCategory').val(),
+            remark: $('#budgetItemRemark').val().trim(),
+            isRecurring: isRecurring,
+            month: $('#budgetItemMonth').val() || window.budgetSelectedMonth
+        };
+        if (id) {
+            const wasRecurring = $('#budgetItemIsRecurring').val() === 'true';
+            window.appCore && window.appCore.updateBudgetItem && window.appCore.updateBudgetItem(id, wasRecurring, data);
+        } else {
+            window.appCore && window.appCore.addBudgetItem && window.appCore.addBudgetItem(data);
+        }
+        closeBudgetItemModal();
+    });
+
     // History functionality
     window.showLoanHistory = function(type, id, name) {
         console.log('History requested:', { type, id, name });
@@ -1093,5 +1417,40 @@ function editBankLoan(id) {
 function deleteBankLoan(id) {
     if (window.appCore && window.appCore.deleteBankLoan) {
         window.appCore.deleteBankLoan(id);
+    }
+}
+
+// Budget global functions for onclick handlers
+function setBudgetMonth(value) {
+    if (!value) return;
+    window.budgetSelectedMonth = value;
+    if (window.loadBudget) window.loadBudget();
+}
+
+function onBudgetItemTypeChange() {
+    if (window.populateBudgetItemCategories) window.populateBudgetItemCategories();
+}
+
+function onBudgetItemRecurringChange() {
+    if (window.updateBudgetItemMonthVisibility) window.updateBudgetItemMonthVisibility();
+}
+
+function editBudgetItem(id, isRecurring) {
+    if (window.showEditBudgetItemModal) window.showEditBudgetItemModal(id, isRecurring);
+}
+
+function deleteBudgetItem(id, isRecurring) {
+    if (window.appCore && window.appCore.deleteBudgetItem) {
+        window.appCore.deleteBudgetItem(id, isRecurring);
+    }
+}
+
+function editBudgetCategory(id) {
+    if (window.showEditBudgetCategoryModal) window.showEditBudgetCategoryModal(id);
+}
+
+function deleteBudgetCategory(id) {
+    if (window.appCore && window.appCore.deleteBudgetCategory) {
+        window.appCore.deleteBudgetCategory(id);
     }
 }

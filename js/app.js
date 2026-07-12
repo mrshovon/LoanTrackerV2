@@ -27,7 +27,12 @@ $(document).ready(function() {
             bank: [],
             shops: []
         },
-        transactions: []
+        transactions: [],
+        budget: {
+            categories: [],
+            recurring: [],
+            entries: []
+        }
     };
     
     // Currency helper functions
@@ -260,6 +265,22 @@ $(document).ready(function() {
                 loadCreditBalance && loadCreditBalance();
             }
         });
+
+        // Load budget (categories, recurring items, one-off entries)
+        userRef.child('budget').on('value', function(snapshot) {
+            const budget = snapshot.val() || {};
+            const normalize = (x) => Array.isArray(x) ? x : (x ? Object.values(x) : []);
+            app.budget = {
+                categories: normalize(budget.categories),
+                recurring: normalize(budget.recurring),
+                entries: normalize(budget.entries)
+            };
+
+            // refresh page if viewing budget
+            if ($('#mainApp').is(':visible') && app.currentPage === 'budget') {
+                loadBudget && loadBudget();
+            }
+        });
     }
     
     function saveLoansToFirebase() {
@@ -287,6 +308,15 @@ $(document).ready(function() {
         database.ref('userData/' + app.currentUser.uid + '/shops').set(app.loans.shops, function(error) {
             if (error) {
                 console.error('Error saving shops:', error);
+            }
+        });
+    }
+
+    function saveBudgetToFirebase() {
+        if (!app.currentUser) return;
+        database.ref('userData/' + app.currentUser.uid + '/budget').set(app.budget, function(error) {
+            if (error) {
+                console.error('Error saving budget:', error);
             }
         });
     }
@@ -346,7 +376,7 @@ $(document).ready(function() {
                 <!-- Bank Loans List -->
                 <div class="space-y-4">
                     ${bankLoans.map(loan => {
-                        const emi = calculateEMI(loan.principalAmount, loan.annualInterestRate, loan.tenureMonths);
+                        const emi = calculateEMI(loan.principalAmount, loan.annualInterestRate, loan.tenureMonths, loan.interestMethod || 'reducing');
                         const progressPercentage = ((loan.tenureMonths - loan.monthsRemaining) / loan.tenureMonths) * 100;
                         
                         return `
@@ -608,13 +638,21 @@ $(document).ready(function() {
     function calculateBankLoansEMI() {
         if (!app.loans || !app.loans.bank) return 0;
         return app.loans.bank.reduce((sum, loan) => {
-            const emi = calculateEMI(loan.principalAmount || 0, loan.annualInterestRate || 0, loan.tenureMonths || 0);
+            const emi = calculateEMI(loan.principalAmount || 0, loan.annualInterestRate || 0, loan.tenureMonths || 0, loan.interestMethod || 'reducing');
             return sum + ((loan.monthsRemaining || 0) > 0 ? emi : 0);
         }, 0);
     }
     
-    function calculateEMI(principal, annualRate, tenureMonths) {
+    function calculateEMI(principal, annualRate, tenureMonths, method) {
+        if (!tenureMonths || tenureMonths <= 0) return 0;
+        if (method === 'flat') {
+            // Flat / add-on interest: total = principal + principal * rate * years
+            const total = principal * (1 + (annualRate / 100) * (tenureMonths / 12));
+            return Math.round(total / tenureMonths);
+        }
+        // Reducing-balance amortization (default)
         const monthlyRate = annualRate / 12 / 100;
+        if (monthlyRate === 0) return Math.round(principal / tenureMonths);
         const emi = principal * monthlyRate * Math.pow(1 + monthlyRate, tenureMonths) / (Math.pow(1 + monthlyRate, tenureMonths) - 1);
         return Math.round(emi);
     }
@@ -701,7 +739,7 @@ $(document).ready(function() {
                     labels: bankLoans.map(l => l.bankName || 'Unknown'),
                     datasets: [{
                         label: 'Monthly EMI',
-                        data: bankLoans.map(l => calculateEMI(l.principalAmount || 0, l.annualInterestRate || 0, l.tenureMonths || 0)),
+                        data: bankLoans.map(l => calculateEMI(l.principalAmount || 0, l.annualInterestRate || 0, l.tenureMonths || 0, l.interestMethod || 'reducing')),
                         borderColor: '#f59e0b',
                         backgroundColor: '#f59e0b',
                         tension: 0.4
@@ -1044,7 +1082,132 @@ $(document).ready(function() {
                 showToast(`Payment of ${formatCurrency(amount)} recorded for ${shop.name}`, 'success');
                 loadCreditBalance && loadCreditBalance();
             }
-    
+
+            // ---- Budget feature ----
+            function ensureBudget() {
+                if (!app.budget) app.budget = { categories: [], recurring: [], entries: [] };
+                if (!app.budget.categories) app.budget.categories = [];
+                if (!app.budget.recurring) app.budget.recurring = [];
+                if (!app.budget.entries) app.budget.entries = [];
+            }
+
+            function addBudgetCategory(name, type, monthlyBudget) {
+                ensureBudget();
+                app.budget.categories.push({
+                    id: Date.now().toString(),
+                    name: name,
+                    type: type,
+                    monthlyBudget: monthlyBudget || 0,
+                    createdAt: new Date().toISOString()
+                });
+                saveBudgetToFirebase();
+                showToast('Category added successfully', 'success');
+                loadBudget && loadBudget();
+            }
+
+            function updateBudgetCategory(id, name, type, monthlyBudget) {
+                ensureBudget();
+                const cat = app.budget.categories.find(c => c.id === id);
+                if (!cat) return;
+                cat.name = name;
+                cat.type = type;
+                cat.monthlyBudget = monthlyBudget || 0;
+                saveBudgetToFirebase();
+                showToast('Category updated successfully', 'success');
+                loadBudget && loadBudget();
+            }
+
+            function deleteBudgetCategory(id) {
+                ensureBudget();
+                showConfirmDialog(
+                    'Delete this category? Its budget target will be removed. Items in this category will remain but show as uncategorized.',
+                    function() {
+                        app.budget.categories = app.budget.categories.filter(c => c.id !== id);
+                        saveBudgetToFirebase();
+                        loadBudget && loadBudget();
+                        showToast('Category deleted successfully', 'success');
+                    }
+                );
+            }
+
+            function addBudgetItem(data) {
+                ensureBudget();
+                const base = {
+                    id: Date.now().toString(),
+                    type: data.type,
+                    name: data.name,
+                    amount: data.amount,
+                    categoryId: data.categoryId || '',
+                    remark: data.remark || '',
+                    createdAt: new Date().toISOString()
+                };
+                if (data.isRecurring) {
+                    app.budget.recurring.push(base);
+                } else {
+                    base.month = data.month;
+                    base.date = new Date().toISOString();
+                    app.budget.entries.push(base);
+                }
+                saveBudgetToFirebase();
+                showToast('Item added successfully', 'success');
+                loadBudget && loadBudget();
+            }
+
+            function updateBudgetItem(id, wasRecurring, data) {
+                ensureBudget();
+                const fromList = wasRecurring ? app.budget.recurring : app.budget.entries;
+                const item = fromList.find(i => i.id === id);
+                if (!item) return;
+
+                item.type = data.type;
+                item.name = data.name;
+                item.amount = data.amount;
+                item.categoryId = data.categoryId || '';
+                item.remark = data.remark || '';
+
+                const nowRecurring = !!data.isRecurring;
+                if (nowRecurring !== wasRecurring) {
+                    // Move between recurring and one-off lists
+                    if (wasRecurring) {
+                        app.budget.recurring = app.budget.recurring.filter(i => i.id !== id);
+                    } else {
+                        app.budget.entries = app.budget.entries.filter(i => i.id !== id);
+                    }
+                    if (nowRecurring) {
+                        delete item.month;
+                        delete item.date;
+                        app.budget.recurring.push(item);
+                    } else {
+                        item.month = data.month;
+                        item.date = item.date || new Date().toISOString();
+                        app.budget.entries.push(item);
+                    }
+                } else if (!nowRecurring) {
+                    item.month = data.month;
+                }
+
+                saveBudgetToFirebase();
+                showToast('Item updated successfully', 'success');
+                loadBudget && loadBudget();
+            }
+
+            function deleteBudgetItem(id, isRecurring) {
+                ensureBudget();
+                showConfirmDialog(
+                    'Are you sure you want to delete this item?',
+                    function() {
+                        if (isRecurring) {
+                            app.budget.recurring = app.budget.recurring.filter(i => i.id !== id);
+                        } else {
+                            app.budget.entries = app.budget.entries.filter(i => i.id !== id);
+                        }
+                        saveBudgetToFirebase();
+                        loadBudget && loadBudget();
+                        showToast('Item deleted successfully', 'success');
+                    }
+                );
+            }
+
     function editBankLoan(id) {
         const loan = app.loans.bank.find(l => l.id === id);
         if (!loan) return;
@@ -1054,6 +1217,7 @@ $(document).ready(function() {
         $('#editBankName').val(loan.bankName);
         $('#editPrincipalAmount').val(loan.principalAmount);
         $('#editAnnualInterestRate').val(loan.annualInterestRate);
+        $('#editInterestMethod').val(loan.interestMethod || 'reducing');
         $('#editTenureMonths').val(loan.tenureMonths);
         $('#editTotalPaid').val(loan.totalPaid);
         
@@ -1062,29 +1226,40 @@ $(document).ready(function() {
         lucide.createIcons();
     }
 
-    function updateBankLoan(id, bankName, principalAmount, annualInterestRate, tenureMonths, totalPaid) {
+    function updateBankLoan(id, bankName, principalAmount, annualInterestRate, tenureMonths, totalPaid, interestMethod) {
         const loan = app.loans.bank.find(l => l.id === id);
         if (!loan) return;
+
+        interestMethod = interestMethod || 'reducing';
 
         loan.bankName = bankName;
         loan.principalAmount = principalAmount;
         loan.annualInterestRate = annualInterestRate;
         loan.tenureMonths = tenureMonths;
+        loan.interestMethod = interestMethod;
         loan.totalPaid = totalPaid;
 
-        const emi = calculateEMI(principalAmount, annualInterestRate, tenureMonths);
-        const monthsPaid = Math.floor(totalPaid / emi);
-        const monthlyRate = annualInterestRate / 12 / 100;
-        let remainingPrincipal = principalAmount;
+        const emi = calculateEMI(principalAmount, annualInterestRate, tenureMonths, interestMethod);
+        const monthsPaid = emi > 0 ? Math.floor(totalPaid / emi) : 0;
 
-        for (let i = 0; i < monthsPaid && remainingPrincipal > 0; i++) {
-            const interestPayment = remainingPrincipal * monthlyRate;
-            const principalPayment = Math.min(emi - interestPayment, remainingPrincipal);
-            remainingPrincipal -= principalPayment;
+        if (interestMethod === 'flat') {
+            // Flat: each installment is a fixed EMI; outstanding = remaining installments
+            const monthsRemaining = Math.max(0, tenureMonths - monthsPaid);
+            loan.currentOutstanding = emi * monthsRemaining;
+            loan.monthsRemaining = monthsRemaining;
+        } else {
+            const monthlyRate = annualInterestRate / 12 / 100;
+            let remainingPrincipal = principalAmount;
+
+            for (let i = 0; i < monthsPaid && remainingPrincipal > 0; i++) {
+                const interestPayment = remainingPrincipal * monthlyRate;
+                const principalPayment = Math.min(emi - interestPayment, remainingPrincipal);
+                remainingPrincipal -= principalPayment;
+            }
+
+            loan.currentOutstanding = Math.max(0, remainingPrincipal);
+            loan.monthsRemaining = Math.max(0, tenureMonths - monthsPaid);
         }
-
-        loan.currentOutstanding = Math.max(0, remainingPrincipal);
-        loan.monthsRemaining = Math.max(0, tenureMonths - monthsPaid);
 
         saveLoansToFirebase();
         navigateTo('bank');
@@ -1109,7 +1284,7 @@ $(document).ready(function() {
         const loan = app.loans.bank.find(l => l.id === id);
         if (!loan) return;
         
-        const emi = calculateEMI(loan.principalAmount, loan.annualInterestRate, loan.tenureMonths);
+        const emi = calculateEMI(loan.principalAmount, loan.annualInterestRate, loan.tenureMonths, loan.interestMethod || 'reducing');
         const paymentAmount = customAmount || emi;
         
         if (loan.monthsRemaining <= 0) {
@@ -1394,6 +1569,7 @@ $(document).ready(function() {
             const principalAmount = parseFloat($('#editPrincipalAmount').val());
             const annualInterestRate = parseFloat($('#editAnnualInterestRate').val());
             const tenureMonths = parseInt($('#editTenureMonths').val());
+            const interestMethod = $('#editInterestMethod').val() || 'reducing';
             const totalPaid = parseFloat($('#editTotalPaid').val());
 
             if (!loanId || !bankName || isNaN(principalAmount) || isNaN(annualInterestRate) || isNaN(tenureMonths) || isNaN(totalPaid)) {
@@ -1401,7 +1577,7 @@ $(document).ready(function() {
                 return;
             }
 
-            updateBankLoan(loanId, bankName, principalAmount, annualInterestRate, tenureMonths, totalPaid);
+            updateBankLoan(loanId, bankName, principalAmount, annualInterestRate, tenureMonths, totalPaid, interestMethod);
             closeEditBankLoanModal();
         });
         
@@ -1445,30 +1621,33 @@ $(document).ready(function() {
             const principalAmount = parseFloat($('#principalAmount').val());
             const annualInterestRate = parseFloat($('#annualInterestRate').val());
             const tenureMonths = parseInt($('#tenureMonths').val());
+            const interestMethod = $('#interestMethod').val() || 'reducing';
             const startDate = $('#startDate').val();
             const totalPaid = parseFloat($('#totalPaid').val());
-            
+
             // Calculate remaining months based on start date
             const start = new Date(startDate);
             const now = new Date();
             const monthsElapsed = Math.max(0, Math.floor((now - start) / (1000 * 60 * 60 * 24 * 30)));
             const monthsRemaining = Math.max(0, tenureMonths - monthsElapsed);
-            
+
             // Calculate EMI and outstanding
-            const emi = calculateEMI(principalAmount, annualInterestRate, tenureMonths);
-            
+            const emi = calculateEMI(principalAmount, annualInterestRate, tenureMonths, interestMethod);
+
             // Calculate remaining balance using simpler approach
             const monthsPaid = tenureMonths - monthsRemaining;
-            
+
             let currentOutstanding;
-            
+
             if (monthsPaid >= tenureMonths) {
                 currentOutstanding = 0;
+            } else if (interestMethod === 'flat') {
+                // Flat: total payable is EMI * tenure; outstanding tracks remaining installments
+                currentOutstanding = emi * monthsRemaining;
             } else {
                 // Calculate remaining principal using amortization
                 const monthlyRate = annualInterestRate / 12 / 100;
-                const emi = calculateEMI(principalAmount, annualInterestRate, tenureMonths);
-                
+
                 // Calculate remaining balance after n payments
                 let remainingPrincipal = principalAmount;
                 for (let i = 0; i < monthsPaid; i++) {
@@ -1476,19 +1655,20 @@ $(document).ready(function() {
                     const principalPayment = emi - interestPayment;
                     remainingPrincipal -= principalPayment;
                 }
-                
+
                 currentOutstanding = Math.max(0, remainingPrincipal);
             }
-            
+
             // Ensure outstanding balance doesn't go negative
             currentOutstanding = Math.max(0, currentOutstanding);
-            
+
             const newLoan = {
                 id: Date.now().toString(),
                 bankName: bankName,
                 principalAmount: principalAmount,
                 annualInterestRate: annualInterestRate,
                 tenureMonths: tenureMonths,
+                interestMethod: interestMethod,
                 startDate: new Date(startDate).toISOString(),
                 totalPaid: totalPaid,
                 currentOutstanding: emi * monthsRemaining,
@@ -1834,6 +2014,12 @@ $(document).ready(function() {
         addShop: addShop,
         addShopCredit: addShopCredit,
         makeShopPayment: makeShopPayment,
+        addBudgetCategory: addBudgetCategory,
+        updateBudgetCategory: updateBudgetCategory,
+        deleteBudgetCategory: deleteBudgetCategory,
+        addBudgetItem: addBudgetItem,
+        updateBudgetItem: updateBudgetItem,
+        deleteBudgetItem: deleteBudgetItem,
         calculateTotalDebt: calculateTotalDebt,
         calculatePersonalLoansTotal: calculatePersonalLoansTotal,
         calculatePersonalLoansPaid: calculatePersonalLoansPaid,
