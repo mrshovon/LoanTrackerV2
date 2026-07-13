@@ -288,6 +288,11 @@ $(document).ready(function() {
 
                         sendWelcomeEmail(newUser.displayName, newUser.email);
 
+                        $('#signupError').addClass('hidden');
+                        $('#signupName').val('');
+                        $('#signupEmail').val('');
+                        $('#signupPassword').val('');
+
                         loadUserData();
                         showMainApp();
                     }
@@ -1391,14 +1396,10 @@ $(document).ready(function() {
                 return;
             }
             
-            if (!signup(name, email, password)) {
-                $('#signupError').removeClass('hidden').find('p').text('Email already exists');
-            } else {
-                $('#signupError').addClass('hidden');
-                $('#signupName').val('');
-                $('#signupEmail').val('');
-                $('#signupPassword').val('');
-            }
+            // signup() is asynchronous - it reports its own errors and clears the
+            // form once Firebase confirms the account. Do not infer a result here.
+            $('#signupError').addClass('hidden');
+            signup(name, email, password);
         });
         
         $('#formToggleBtn').click(function() {
