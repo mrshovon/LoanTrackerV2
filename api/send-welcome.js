@@ -178,8 +178,13 @@ module.exports = async function handler(req, res) {
         const result = await sendWelcomeEmail(name, email);
         return res.status(200).json({ ok: true, id: result && result.id });
     } catch (error) {
+        // Surface Resend's own message - it names the actual problem (unverified
+        // domain, bad key, test-mode recipient restriction). It contains no secrets.
         console.error('send-welcome failed:', error.message);
-        return res.status(502).json({ error: 'Could not send the welcome email' });
+        return res.status(502).json({
+            error: 'Could not send the welcome email',
+            reason: error.message
+        });
     }
 };
 

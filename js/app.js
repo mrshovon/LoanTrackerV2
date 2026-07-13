@@ -230,9 +230,11 @@ $(document).ready(function() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: name, email: email })
             }).then(function(response) {
-                if (!response.ok) {
-                    console.warn('Welcome email was not sent (HTTP ' + response.status + ')');
-                }
+                if (response.ok) return;
+                return response.json().catch(function() { return {}; }).then(function(body) {
+                    console.warn('Welcome email was not sent (HTTP ' + response.status + '):',
+                        body.reason || body.error || 'no detail');
+                });
             }).catch(function(error) {
                 console.warn('Welcome email request failed:', error);
             });
