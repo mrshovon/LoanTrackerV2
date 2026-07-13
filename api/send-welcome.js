@@ -12,7 +12,7 @@
 //   MAIL_FROM       - sender (default Resend's shared onboarding address)
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
-const DEFAULT_FROM = 'Loan Tracker <onboarding@resend.dev>';
+const DEFAULT_FROM = 'Arclend <onboarding@resend.dev>';
 const DEFAULT_APP_URL = 'http://localhost:3000';
 
 // Best-effort abuse limit. This endpoint is unauthenticated by necessity - the
@@ -49,7 +49,7 @@ function welcomeText(name, appUrl) {
     return [
         `Hi ${name},`,
         '',
-        'Welcome to Loan Tracker! Your account is ready.',
+        'Welcome to Arclend! Your account is ready.',
         '',
         'You can now keep every personal loan, credit card, bank EMI and shop credit',
         'in one place, and see exactly what you owe and what you have paid off.',
@@ -57,13 +57,15 @@ function welcomeText(name, appUrl) {
         `Sign in: ${appUrl}`,
         '',
         'Happy tracking,',
-        'The Loan Tracker Team'
+        'The Arclend Team'
     ].join('\n');
 }
 
 function welcomeHtml(name, appUrl) {
     const safeName = escapeHtml(name);
     const safeUrl = escapeHtml(appUrl);
+    // Email clients cannot render SVG, and images need an absolute URL.
+    const logoUrl = escapeHtml(String(appUrl).replace(/\/+$/, '') + '/public/brandImages/arclend-logo.png');
     return `<!doctype html>
 <html>
   <body style="margin:0;padding:0;background-color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
@@ -72,8 +74,13 @@ function welcomeHtml(name, appUrl) {
         <td align="center">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
             <tr>
-              <td style="background-color:#2563eb;padding:32px 32px 28px;">
-                <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;">Welcome to Loan Tracker</h1>
+              <td align="center" style="padding:32px 32px 8px;">
+                <img src="${logoUrl}" alt="Arclend" width="228" height="60" style="display:block;width:228px;height:auto;border:0;" />
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:8px 32px 0;">
+                <h1 style="margin:0;color:#0F6E56;font-size:22px;font-weight:700;">Welcome to Arclend</h1>
               </td>
             </tr>
             <tr>
@@ -89,21 +96,21 @@ function welcomeHtml(name, appUrl) {
                 </p>
                 <table role="presentation" cellpadding="0" cellspacing="0">
                   <tr>
-                    <td style="border-radius:8px;background-color:#2563eb;">
+                    <td style="border-radius:8px;background-color:#0F6E56;">
                       <a href="${safeUrl}" style="display:inline-block;padding:12px 28px;color:#ffffff;font-size:16px;font-weight:600;text-decoration:none;">Sign in to your account</a>
                     </td>
                   </tr>
                 </table>
                 <p style="margin:28px 0 0;color:#6b7280;font-size:14px;line-height:22px;">
                   If the button does not work, paste this into your browser:<br />
-                  <a href="${safeUrl}" style="color:#2563eb;">${safeUrl}</a>
+                  <a href="${safeUrl}" style="color:#0F6E56;">${safeUrl}</a>
                 </p>
               </td>
             </tr>
             <tr>
               <td style="padding:20px 32px;background-color:#f9fafb;border-top:1px solid #e5e7eb;">
                 <p style="margin:0;color:#9ca3af;font-size:13px;line-height:20px;">
-                  You are receiving this because someone signed up for Loan Tracker with
+                  You are receiving this because someone signed up for Arclend with
                   this email address. If that was not you, you can ignore this message.
                 </p>
               </td>
@@ -147,7 +154,7 @@ async function sendWelcomeEmail(name, email) {
         body: JSON.stringify({
             from: from,
             to: [email],
-            subject: 'Welcome to Loan Tracker',
+            subject: 'Welcome to Arclend',
             html: welcomeHtml(name, appUrl),
             text: welcomeText(name, appUrl)
         })

@@ -1,0 +1,10 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Arclend app icon">
+  <rect width="512" height="512" rx="112" fill="#0F6E56"/>
+  <path d="M120 358 Q222 196 392 145" fill="none" stroke="#9FE1CB" stroke-width="26" stroke-linecap="round"/>
+  <path d="M360 136 L402 141 L389 183" fill="none" stroke="#9FE1CB" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="205" cy="366" rx="94" ry="30" fill="#5DCAA5"/>
+  <ellipse cx="205" cy="332" rx="94" ry="30" fill="#E1F5EE"/>
+  <ellipse cx="205" cy="298" rx="94" ry="30" fill="#5DCAA5"/>
+  <ellipse cx="205" cy="264" rx="94" ry="30" fill="#E1F5EE"/>
+  <text x="205" y="285" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="700" fill="#0F6E56">$</text>
+</svg>
