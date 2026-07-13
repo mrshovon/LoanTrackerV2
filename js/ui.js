@@ -1,4 +1,71 @@
 // Loan Tracker UI Functions
+
+// Makes a value safe to sit inside a JS string literal within an HTML attribute,
+// e.g. onclick="editShop('Bob's Store')" - which would otherwise break the handler.
+function escapeAttr(value) {
+    return String(value == null ? '' : value)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+// Plain HTML-attribute escaping (no JS-string escaping) - for data-search values.
+function escapeHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+// ---- Search ----
+// Rows opt in with data-search="<haystack>" and live inside a container passed as
+// `scope`. Filtering hides rows in place rather than re-rendering the page, so the
+// input keeps focus while typing. A `.search-empty` child of the container is shown
+// when a search matches nothing.
+function searchBox(scope, placeholder) {
+    return `
+        <div class="relative w-full md:w-72">
+            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+            <input type="search" placeholder="${escapeHtml(placeholder)}"
+                oninput="applySearch('${scope}', this.value)"
+                class="w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" />
+        </div>
+    `;
+}
+
+function searchEmptyState(message) {
+    return `
+        <div class="search-empty hidden text-center py-8 text-gray-500 dark:text-gray-400">
+            <i data-lucide="search-x" class="w-10 h-10 mx-auto mb-3"></i>
+            <p>${escapeHtml(message)}</p>
+        </div>
+    `;
+}
+
+function applySearch(scope, term) {
+    const needle = String(term || '').trim().toLowerCase();
+
+    $(scope).each(function() {
+        const $container = $(this);
+        let visible = 0;
+
+        $container.children('[data-search]').each(function() {
+            const haystack = String($(this).attr('data-search') || '').toLowerCase();
+            const match = !needle || haystack.indexOf(needle) !== -1;
+            $(this).toggleClass('hidden', !match);
+            if (match) visible++;
+        });
+
+        $container.children('.search-empty').toggleClass('hidden', visible > 0 || !needle);
+    });
+
+    if (window.lucide) lucide.createIcons();
+}
+
 $(document).ready(function() {
     // Toast Notification System
     window.showToast = function(message, type = 'success') {
@@ -236,10 +303,14 @@ $(document).ready(function() {
                 
                 <!-- Recent Transactions -->
                 <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Recent Transactions</h2>
-                    <div class="space-y-3">
+                    <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-3 mb-4">
+                        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Recent Transactions</h2>
+                        ${searchBox('#dashboardTransactionsList', 'Search recent transactions...')}
+                    </div>
+                    <div id="dashboardTransactionsList" class="space-y-3">
+                        ${searchEmptyState('No recent transactions match your search.')}
                         ${getRecentTransactions().map(t => `
-                            <div class="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
+                            <div class="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700" data-search="${escapeHtml([t.description, t.category, t.amount].join(' '))}">
                                 <div class="flex items-center space-x-3">
                                     <div class="p-2 ${t.type === 'payment' ? 'bg-green-100' : 'bg-red-100'} rounded-full">
                                         <i data-lucide="${t.type === 'payment' ? 'arrow-down' : 'arrow-up'}" class="w-4 h-4 ${t.type === 'payment' ? 'text-green-600' : 'text-red-600'}"></i>
@@ -269,10 +340,11 @@ $(document).ready(function() {
         const shops = app.loans && app.loans.shops ? app.loans.shops : [];
         const html = `
             <div class="space-y-6">
-                <div class="flex justify-between items-center">
+                <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
                     <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Credit balance (বাকি)</h1>
-                    <div class="flex items-center space-x-2">
-                        <button class="btn bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 inline-flex items-center whitespace-nowrap" onclick="showAddShopModal()">
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        ${searchBox('#shopList', 'Search by shop name...')}
+                        <button class="btn bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 inline-flex items-center justify-center whitespace-nowrap" onclick="showAddShopModal()">
                             <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
                             Add Shop
                         </button>
@@ -296,14 +368,15 @@ $(document).ready(function() {
 
                 <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                     <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Shops</h2>
-                    <div class="space-y-4">
+                    <div id="shopList" class="space-y-4">
+                        ${searchEmptyState('No shops match your search.')}
                         ${shops.length === 0 ? `
                             <div class="text-center py-8 text-gray-500 dark:text-gray-400">
                                 <i data-lucide="store" class="w-12 h-12 mx-auto mb-4"></i>
                                 <p>No shops have been added yet.</p>
                             </div>
                         ` : shops.map(shop => `
-                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700" data-search="${escapeHtml(shop.name)}">
                                 <div>
                                     <p class="text-sm text-gray-500 dark:text-gray-400">Shop</p>
                                     <p class="font-semibold text-gray-900 dark:text-white">${shop.name}</p>
@@ -316,10 +389,16 @@ $(document).ready(function() {
                                     <p class="text-sm text-gray-500 dark:text-gray-400">Total Credit</p>
                                     <p class="font-semibold text-green-600 dark:text-green-400">${formatCurrency(shop.totalCredit || 0)}</p>
                                 </div>
-                                <div class="flex items-center gap-2">
-                                    <button class="btn bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700" onclick="showShopTransactionModal('${shop.id}','payment','${shop.name}')">Pay</button>
-                                    <button class="btn bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700" onclick="showShopTransactionModal('${shop.id}','credit','${shop.name}')">Add Credit</button>
-                                    <button class="btn bg-gray-200 text-gray-700 px-3 py-2 rounded-md" onclick="showLoanHistory('shop','${shop.id}','${shop.name}')">History</button>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <button class="btn bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700" onclick="showShopTransactionModal('${shop.id}','payment','${escapeAttr(shop.name)}')">Pay</button>
+                                    <button class="btn bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700" onclick="showShopTransactionModal('${shop.id}','credit','${escapeAttr(shop.name)}')">Add Credit</button>
+                                    <button class="btn bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-md" onclick="showLoanHistory('shop','${shop.id}','${escapeAttr(shop.name)}')">History</button>
+                                    <button class="btn bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-2 rounded-md" onclick="editShop('${shop.id}')" title="Edit shop">
+                                        <i data-lucide="pencil" class="w-4 h-4"></i>
+                                    </button>
+                                    <button class="btn bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 px-2 py-2 rounded-md" onclick="deleteShop('${shop.id}')" title="Delete shop">
+                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                    </button>
                                 </div>
                             </div>
                         `).join('')}
@@ -336,12 +415,15 @@ $(document).ready(function() {
         const personalLoans = app.loans && app.loans.personal ? app.loans.personal : [];
         const html = `
             <div class="space-y-6">
-                <div class="flex justify-between items-center">
+                <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
                     <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Personal Loans</h1>
-                    <button class="btn bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center" onclick="showAddPersonalLoanModal()">
-                        <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
-                        Add Personal Loan
-                    </button>
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        ${searchBox('#personalList', 'Search by person name...')}
+                        <button class="btn bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center whitespace-nowrap" onclick="showAddPersonalLoanModal()">
+                            <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                            Add Personal Loan
+                        </button>
+                    </div>
                 </div>
                 
                 <!-- Summary Cards -->
@@ -361,9 +443,10 @@ $(document).ready(function() {
                 </div>
                 
                 <!-- Loans List -->
-                <div class="space-y-4">
+                <div id="personalList" class="space-y-4">
+                    ${searchEmptyState('No personal loans match your search.')}
                     ${personalLoans.map(loan => `
-                        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow card-hover">
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow card-hover" data-search="${escapeHtml(loan.personName)}">
                             <div class="flex justify-between items-start mb-4">
                                 <div>
                                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${loan.personName}</h3>
@@ -440,12 +523,15 @@ $(document).ready(function() {
         const creditCards = app.loans && app.loans.credit ? app.loans.credit : [];
         const html = `
             <div class="space-y-6">
-                <div class="flex justify-between items-center">
+                <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
                     <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Credit Cards</h1>
-                    <button class="btn bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center" onclick="showAddCreditCardModal()">
-                        <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
-                        Add Credit Card
-                    </button>
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        ${searchBox('#creditList', 'Search by card name...')}
+                        <button class="btn bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center justify-center whitespace-nowrap" onclick="showAddCreditCardModal()">
+                            <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                            Add Credit Card
+                        </button>
+                    </div>
                 </div>
                 
                 <!-- Summary Cards -->
@@ -469,13 +555,14 @@ $(document).ready(function() {
                 </div>
                 
                 <!-- Credit Cards List -->
-                <div class="space-y-4">
+                <div id="creditList" class="space-y-4">
+                    ${searchEmptyState('No credit cards match your search.')}
                     ${creditCards.map(card => {
                         const utilization = (card.currentOutstanding / card.totalCreditLimit) * 100;
                         const minPayment = card.currentOutstanding * 0.05;
-                        
+
                         return `
-                            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow card-hover">
+                            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow card-hover" data-search="${escapeHtml(card.cardName)}">
                                 <div class="flex justify-between items-start mb-4">
                                     <div>
                                         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${card.cardName}</h3>
@@ -557,12 +644,15 @@ $(document).ready(function() {
         const bankLoans = app.loans && app.loans.bank ? app.loans.bank : [];
         const html = `
             <div class="space-y-6">
-                <div class="flex justify-between items-center">
+                <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
                     <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Bank Loans</h1>
-                    <button class="btn bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 flex items-center" onclick="showAddBankLoanModal()">
-                        <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
-                        Add Bank Loan
-                    </button>
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        ${searchBox('#bankList', 'Search by bank name...')}
+                        <button class="btn bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 flex items-center justify-center whitespace-nowrap" onclick="showAddBankLoanModal()">
+                            <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                            Add Bank Loan
+                        </button>
+                    </div>
                 </div>
                 
                 <!-- Summary Cards -->
@@ -586,13 +676,14 @@ $(document).ready(function() {
                 </div>
                 
                 <!-- Bank Loans List -->
-                <div class="space-y-4">
+                <div id="bankList" class="space-y-4">
+                    ${searchEmptyState('No bank loans match your search.')}
                     ${bankLoans.map(loan => {
                         const emi = calculateEMI(loan.principalAmount, loan.annualInterestRate, loan.tenureMonths, loan.interestMethod || 'reducing');
                         const progressPercentage = ((loan.tenureMonths - loan.monthsRemaining) / loan.tenureMonths) * 100;
-                        
+
                         return `
-                            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow card-hover">
+                            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow card-hover" data-search="${escapeHtml(loan.bankName)}">
                                 <div class="flex justify-between items-start mb-4">
                                     <div>
                                         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${loan.bankName}</h3>
@@ -754,9 +845,9 @@ $(document).ready(function() {
                 
                 <!-- Filters -->
                 <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                    <div class="flex flex-col md:flex-row gap-4">
+                    <div class="flex flex-col md:flex-row gap-4 md:items-center">
                         <div class="flex-1">
-                            <input type="text" id="searchTransactions" placeholder="Search transactions..." class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                            ${searchBox('#transactionsList', 'Search by description, category or amount...')}
                         </div>
                         <div class="flex gap-2">
                             <button class="btn filter-btn bg-blue-600 text-white px-4 py-2 rounded-lg" data-filter="all">All</button>
@@ -765,13 +856,14 @@ $(document).ready(function() {
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Transactions List -->
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
                     <div class="p-6">
                         <div id="transactionsList" class="space-y-3">
+                            ${searchEmptyState('No transactions match your search.')}
                             ${getFilteredTransactions('all').map(t => `
-                                <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700" data-search="${escapeHtml([t.description, t.category, t.amount].join(' '))}">
                                     <div class="flex items-center space-x-4">
                                         <div class="p-2 ${t.type === 'payment' ? 'bg-green-100' : 'bg-red-100'} rounded-full">
                                             <i data-lucide="${t.type === 'payment' ? 'arrow-down' : 'arrow-up'}" class="w-5 h-5 ${t.type === 'payment' ? 'text-green-600' : 'text-red-600'}"></i>
@@ -860,6 +952,117 @@ $(document).ready(function() {
         $('#shopTransactionModal').addClass('hidden');
     };
 
+    window.showEditShopModal = function(id) {
+        const shop = (app.loans.shops || []).find(s => s.id === id);
+        if (!shop) return;
+        $('#editShopForm')[0].reset();
+        $('#editShopId').val(shop.id);
+        $('#editShopName').val(shop.name);
+        $('#editShopModal').removeClass('hidden');
+        lucide.createIcons();
+    };
+
+    window.closeEditShopModal = function() {
+        $('#editShopModal').addClass('hidden');
+    };
+
+    window.showEditShopTransactionModal = function(transactionId) {
+        const t = app.transactions.find(tx => tx.id === transactionId && tx.category === 'shop');
+        if (!t) return;
+        const shop = (app.loans.shops || []).find(s => s.id === t.shopId);
+        $('#editShopTransactionForm')[0].reset();
+        $('#editShopTransactionId').val(t.id);
+        $('#editShopTransactionAmount').val(t.amount);
+        $('#editShopTransactionDescription').val(t.description || '');
+        $('#editShopTransactionTitle').text(
+            `Edit ${t.type === 'payment' ? 'Payment' : 'Credit'}${shop ? ' - ' + shop.name : ''}`
+        );
+        $('#editShopTransactionModal').removeClass('hidden');
+        lucide.createIcons();
+    };
+
+    window.closeEditShopTransactionModal = function() {
+        $('#editShopTransactionModal').addClass('hidden');
+    };
+
+    $('#editShopForm').submit(function(e) {
+        e.preventDefault();
+        const id = $('#editShopId').val();
+        const name = $('#editShopName').val().trim();
+        if (!name) {
+            showToast('Please enter a shop name', 'error');
+            return;
+        }
+        if (window.appCore && window.appCore.updateShop) {
+            window.appCore.updateShop(id, name);
+        }
+        closeEditShopModal();
+    });
+
+    $('#editShopTransactionForm').submit(function(e) {
+        e.preventDefault();
+        const id = $('#editShopTransactionId').val();
+        const amount = parseFloat($('#editShopTransactionAmount').val());
+        const description = $('#editShopTransactionDescription').val().trim();
+        if (isNaN(amount) || amount <= 0) {
+            showToast('Please enter a valid amount', 'error');
+            return;
+        }
+        if (window.appCore && window.appCore.updateShopTransaction) {
+            window.appCore.updateShopTransaction(id, amount, description);
+        }
+        closeEditShopTransactionModal();
+        closeHistoryModal();
+    });
+
+    // ---- Change password ----
+    window.showChangePasswordModal = function() {
+        $('#changePasswordForm')[0].reset();
+        $('#changePasswordError').addClass('hidden');
+        $('#changePasswordModal').removeClass('hidden');
+        lucide.createIcons();
+    };
+
+    window.closeChangePasswordModal = function() {
+        $('#changePasswordModal').addClass('hidden');
+    };
+
+    function showChangePasswordError(message) {
+        $('#changePasswordError').removeClass('hidden').find('p').text(message);
+    }
+
+    $('#changePasswordForm').submit(function(e) {
+        e.preventDefault();
+        const currentPassword = $('#currentPassword').val();
+        const newPassword = $('#newPassword').val();
+        const confirmPassword = $('#confirmNewPassword').val();
+
+        $('#changePasswordError').addClass('hidden');
+
+        if (newPassword !== confirmPassword) {
+            showChangePasswordError('New passwords do not match');
+            return;
+        }
+        if (newPassword === currentPassword) {
+            showChangePasswordError('New password must be different from the current one');
+            return;
+        }
+        if (!window.appCore || !window.appCore.changePassword) return;
+
+        // Keep the modal open until the change actually succeeds.
+        const $submit = $('#changePasswordSubmit').prop('disabled', true).text('Saving...');
+        window.appCore.changePassword(currentPassword, newPassword)
+            .then(function() {
+                closeChangePasswordModal();
+            })
+            .catch(function(error) {
+                showChangePasswordError(error && error.message ? error.message : 'Could not change password');
+            })
+            .then(function() {
+                $submit.prop('disabled', false).text('Save');
+            });
+    });
+
     // Shop form handlers
     $('#addShopForm').submit(function(e) {
         e.preventDefault();
@@ -909,7 +1112,8 @@ $(document).ready(function() {
         return {
             categories: b.categories || [],
             recurring: b.recurring || [],
-            entries: b.entries || []
+            entries: b.entries || [],
+            debtBudget: b.debtBudget || 0
         };
     }
 
@@ -919,14 +1123,68 @@ $(document).ready(function() {
         return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
     }
 
-    // Items (recurring + one-off) for the selected month
+    // Loan/card/shop repayments surface in the budget as expenses. They are derived
+    // from the payment ledger rather than stored as budget items, so they stay in
+    // sync with their own module and cannot be edited from the Budget page.
+    const DEBT_CATEGORY_ID = '__debt__';
+    const DEBT_SOURCE_LABEL = {
+        personal: 'Personal Loan',
+        credit: 'Credit Card',
+        bank: 'Bank Loan',
+        shop: 'Shop Credit'
+    };
+    const DEBT_SOURCE_PAGE = {
+        personal: 'personal',
+        credit: 'credit',
+        bank: 'bank',
+        shop: 'credit-balance'
+    };
+
+    // Who the payment went to. Shop payments carry a free-text description (often
+    // just "paid"), so the name has to come from the shop record itself.
+    function debtPayeeName(t) {
+        const loans = app.loans || {};
+        if (t.category === 'shop') {
+            const shop = (loans.shops || []).find(s => s.id === t.shopId);
+            return shop ? shop.name : '';
+        }
+        const list = t.category === 'personal' ? loans.personal
+            : t.category === 'credit' ? loans.credit
+            : loans.bank;
+        const entity = (list || []).find(l => l.id === t.loanId);
+        if (!entity) return '';
+        return entity.personName || entity.cardName || entity.bankName || '';
+    }
+
+    // Only 'payment' counts: a credit purchase and its later repayment are the same
+    // money, so counting 'withdrawal' too would double it.
+    function getDebtPaymentItemsForMonth(monthKey) {
+        return (app.transactions || [])
+            .filter(t => t.type === 'payment'
+                && DEBT_SOURCE_LABEL[t.category]
+                && (t.date || '').slice(0, 7) === monthKey)
+            .map(t => ({
+                id: t.id,
+                type: 'expense',
+                name: debtPayeeName(t) || t.description,
+                amount: t.amount || 0,
+                categoryId: DEBT_CATEGORY_ID,
+                remark: t.description || '',
+                isRecurring: false,
+                isAuto: true,
+                source: t.category,
+                date: t.date
+            }));
+    }
+
+    // Items (recurring + one-off + derived debt payments) for the selected month
     function getBudgetItemsForMonth(monthKey) {
         const b = getBudget();
         const recurring = b.recurring.map(i => Object.assign({}, i, { isRecurring: true }));
         const oneOff = b.entries
             .filter(e => e.month === monthKey)
             .map(i => Object.assign({}, i, { isRecurring: false }));
-        return recurring.concat(oneOff);
+        return recurring.concat(oneOff).concat(getDebtPaymentItemsForMonth(monthKey));
     }
 
     window.loadBudget = function() {
@@ -935,6 +1193,7 @@ $(document).ready(function() {
         const items = getBudgetItemsForMonth(monthKey);
 
         const categoryName = (id) => {
+            if (id === DEBT_CATEGORY_ID) return 'Debt Payments';
             const c = b.categories.find(cat => cat.id === id);
             return c ? c.name : 'Uncategorized';
         };
@@ -946,15 +1205,18 @@ $(document).ready(function() {
         const net = totalIncome - totalExpense;
 
         const renderItemRow = (i) => `
-            <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700" data-search="${escapeHtml([i.name, i.remark, categoryName(i.categoryId), i.amount].join(' '))}">
                 <div>
                     <p class="font-semibold text-gray-900 dark:text-white">${i.name}
+                        ${i.isAuto ? `<span class="ml-2 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">Auto &middot; ${DEBT_SOURCE_LABEL[i.source]}</span>` : ''}
                         ${i.isRecurring ? '<span class="ml-2 text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">Fixed</span>' : ''}
                     </p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">${categoryName(i.categoryId)}</p>
                 </div>
                 <div class="md:col-span-2">
-                    <p class="text-sm text-gray-600 dark:text-gray-400">${i.remark ? i.remark : '<span class="italic text-gray-400">No remark</span>'}</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">${i.isAuto
+                        ? `${i.remark ? i.remark + ' &middot; ' : ''}<span class="italic text-gray-400">${new Date(i.date).toLocaleDateString()}</span>`
+                        : (i.remark ? i.remark : '<span class="italic text-gray-400">No remark</span>')}</p>
                 </div>
                 <div>
                     <p class="font-semibold ${i.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
@@ -962,12 +1224,57 @@ $(document).ready(function() {
                     </p>
                 </div>
                 <div class="flex items-center gap-2 justify-end">
-                    <button class="btn bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 rounded-md" onclick="editBudgetItem('${i.id}', ${i.isRecurring})" title="Edit">
-                        <i data-lucide="pencil" class="w-4 h-4"></i>
-                    </button>
-                    <button class="btn bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 px-2 py-1 rounded-md" onclick="deleteBudgetItem('${i.id}', ${i.isRecurring})" title="Delete">
-                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                    </button>
+                    ${i.isAuto ? `
+                        <button class="btn bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 rounded-md" onclick="navigateTo('${DEBT_SOURCE_PAGE[i.source]}')" title="View in ${DEBT_SOURCE_LABEL[i.source]}">
+                            <i data-lucide="external-link" class="w-4 h-4"></i>
+                        </button>
+                    ` : `
+                        <button class="btn bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 rounded-md" onclick="editBudgetItem('${i.id}', ${i.isRecurring})" title="Edit">
+                            <i data-lucide="pencil" class="w-4 h-4"></i>
+                        </button>
+                        <button class="btn bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 px-2 py-1 rounded-md" onclick="deleteBudgetItem('${i.id}', ${i.isRecurring})" title="Delete">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    `}
+                </div>
+            </div>
+        `;
+
+        // Debt Payments is a built-in category: its actual is the sum of this month's
+        // derived payment items, and it can be given a target but never deleted.
+        const debtActual = expenseItems
+            .filter(i => i.isAuto)
+            .reduce((s, i) => s + (i.amount || 0), 0);
+        const debtRemaining = (b.debtBudget || 0) - debtActual;
+        const debtCategoryRow = `
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-2 items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div class="md:col-span-2">
+                    <p class="font-semibold text-gray-900 dark:text-white">Debt Payments
+                        <span class="ml-2 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">Auto</span>
+                    </p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Personal, credit card, bank &amp; shop repayments</p>
+                </div>
+                <div>
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">expense</span>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Budget</p>
+                    <p class="text-sm font-medium text-gray-900 dark:text-white">${formatCurrency(b.debtBudget || 0)}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Actual</p>
+                    <p class="text-sm font-medium text-gray-900 dark:text-white">${formatCurrency(debtActual)}</p>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Remaining</p>
+                        <p class="text-sm font-medium ${debtRemaining >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">${formatCurrency(debtRemaining)}</p>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button class="btn bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 rounded-md" onclick="editDebtBudget()" title="Set monthly budget">
+                            <i data-lucide="pencil" class="w-4 h-4"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
@@ -1017,6 +1324,7 @@ $(document).ready(function() {
                 <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
                     <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Budget</h1>
                     <div class="flex items-center gap-2 flex-wrap">
+                        ${searchBox('#budgetIncomeList, #budgetExpenseList', 'Search items...')}
                         <input type="month" value="${monthKey}" onchange="setBudgetMonth(this.value)"
                             class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" />
                         <button class="btn bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 inline-flex items-center whitespace-nowrap" onclick="showBudgetItemModal()">
@@ -1050,10 +1358,11 @@ $(document).ready(function() {
                 <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                     <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Category Budgets</h2>
                     <div class="space-y-3">
+                        ${debtCategoryRow}
                         ${b.categories.length === 0 ? `
                             <div class="text-center py-6 text-gray-500 dark:text-gray-400">
                                 <i data-lucide="folder" class="w-10 h-10 mx-auto mb-3"></i>
-                                <p>No categories yet. Add one to set monthly budget targets.</p>
+                                <p>No other categories yet. Add one to set monthly budget targets.</p>
                             </div>
                         ` : categoryRows}
                     </div>
@@ -1061,7 +1370,8 @@ $(document).ready(function() {
 
                 <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                     <h2 class="text-xl font-semibold text-green-700 dark:text-green-400 mb-4">Income</h2>
-                    <div class="space-y-3">
+                    <div id="budgetIncomeList" class="space-y-3">
+                        ${searchEmptyState('No income matches your search.')}
                         ${incomeItems.length === 0 ? `
                             <div class="text-center py-6 text-gray-500 dark:text-gray-400">
                                 <p>No income recorded for this month.</p>
@@ -1072,7 +1382,8 @@ $(document).ready(function() {
 
                 <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                     <h2 class="text-xl font-semibold text-red-700 dark:text-red-400 mb-4">Expenses</h2>
-                    <div class="space-y-3">
+                    <div id="budgetExpenseList" class="space-y-3">
+                        ${searchEmptyState('No expenses match your search.')}
                         ${expenseItems.length === 0 ? `
                             <div class="text-center py-6 text-gray-500 dark:text-gray-400">
                                 <p>No expenses recorded for this month.</p>
@@ -1173,6 +1484,29 @@ $(document).ready(function() {
         $('#budgetCategoryModal').addClass('hidden');
     };
 
+    window.showDebtBudgetModal = function() {
+        const b = getBudget();
+        $('#debtBudgetForm')[0].reset();
+        $('#debtBudgetAmount').val(b.debtBudget || 0);
+        $('#debtBudgetModal').removeClass('hidden');
+        lucide.createIcons();
+    };
+
+    window.closeDebtBudgetModal = function() {
+        $('#debtBudgetModal').addClass('hidden');
+    };
+
+    $('#debtBudgetForm').submit(function(e) {
+        e.preventDefault();
+        const amount = parseFloat($('#debtBudgetAmount').val()) || 0;
+        if (amount < 0) {
+            showToast('Please enter a valid amount', 'error');
+            return;
+        }
+        window.appCore && window.appCore.setDebtPaymentsBudget && window.appCore.setDebtPaymentsBudget(amount);
+        closeDebtBudgetModal();
+    });
+
     // Budget form handlers
     $('#budgetCategoryForm').submit(function(e) {
         e.preventDefault();
@@ -1270,11 +1604,23 @@ $(document).ready(function() {
                                         <p class="text-sm text-gray-500 dark:text-gray-400">${new Date(t.date).toLocaleDateString()} at ${new Date(t.date).toLocaleTimeString()}</p>
                                     </div>
                                 </div>
-                                <div class="text-right">
-                                    <p class="font-semibold ${t.type === 'payment' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
-                                        ${t.type === 'payment' ? '+' : '-'}${formatCurrency(t.amount)}
-                                    </p>
-                                    <p class="text-sm text-gray-500 dark:text-gray-400">${t.type === 'payment' ? 'Payment' : t.type === 'withdrawal' ? (type === 'credit' ? 'Purchase' : 'Loan Disbursement') : 'Other'}</p>
+                                <div class="flex items-center gap-3">
+                                    <div class="text-right">
+                                        <p class="font-semibold ${t.type === 'payment' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
+                                            ${t.type === 'payment' ? '+' : '-'}${formatCurrency(t.amount)}
+                                        </p>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">${t.type === 'payment' ? 'Payment' : t.type === 'withdrawal' ? (type === 'credit' ? 'Purchase' : 'Loan Disbursement') : 'Other'}</p>
+                                    </div>
+                                    ${type === 'shop' ? `
+                                        <div class="flex items-center gap-1">
+                                            <button class="btn bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 rounded-md" onclick="editShopTransaction('${t.id}')" title="Edit transaction">
+                                                <i data-lucide="pencil" class="w-4 h-4"></i>
+                                            </button>
+                                            <button class="btn bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 px-2 py-1 rounded-md" onclick="deleteShopTransaction('${t.id}')" title="Delete transaction">
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        </div>
+                                    ` : ''}
                                 </div>
                             </div>
                         </div>
@@ -1452,5 +1798,29 @@ function editBudgetCategory(id) {
 function deleteBudgetCategory(id) {
     if (window.appCore && window.appCore.deleteBudgetCategory) {
         window.appCore.deleteBudgetCategory(id);
+    }
+}
+
+function editDebtBudget() {
+    if (window.showDebtBudgetModal) window.showDebtBudgetModal();
+}
+
+function editShop(id) {
+    if (window.showEditShopModal) window.showEditShopModal(id);
+}
+
+function deleteShop(id) {
+    if (window.appCore && window.appCore.deleteShop) {
+        window.appCore.deleteShop(id);
+    }
+}
+
+function editShopTransaction(id) {
+    if (window.showEditShopTransactionModal) window.showEditShopTransactionModal(id);
+}
+
+function deleteShopTransaction(id) {
+    if (window.appCore && window.appCore.deleteShopTransaction) {
+        window.appCore.deleteShopTransaction(id);
     }
 }

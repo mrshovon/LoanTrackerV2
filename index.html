@@ -92,10 +92,10 @@
               ></i>
             </div>
             <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
-              Loan Tracker
+              Loan and Budget Tracker
             </h1>
             <p class="text-gray-600 dark:text-gray-400 mt-2">
-              Manage your loans efficiently
+              Manage your Finances efficiently and smartly
             </p>
           </div>
 
@@ -223,13 +223,13 @@
           </div>
 
           <!-- Demo credentials -->
-          <div class="mt-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-md">
+          <!-- <div class="mt-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-md">
             <p class="text-xs text-gray-500 dark:text-gray-400 text-center">
               <strong>Demo Credentials:</strong><br />
               Email: demo@example.com<br />
               Password: demo123
             </p>
-          </div>
+          </div> -->
         </div>
       </div>
     </div>
@@ -374,6 +374,13 @@
                 <i data-lucide="moon" class="w-4 h-4"></i>
               </button>
             </div>
+            <button
+              onclick="showChangePasswordModal()"
+              class="w-full flex items-center px-3 py-2 mb-1 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              <i data-lucide="key-round" class="w-5 h-5 mr-3"></i>
+              Change Password
+            </button>
             <button
               id="logoutBtn"
               class="w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -760,6 +767,222 @@
       </div>
     </div>
 
+    <!-- Change Password Modal -->
+    <div
+      id="changePasswordModal"
+      class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full"
+      >
+        <div class="p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+              Change Password
+            </h3>
+            <button
+              onclick="closeChangePasswordModal()"
+              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+          <div
+            id="changePasswordError"
+            class="hidden mb-4 p-3 rounded-md bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800"
+          >
+            <p class="text-sm text-red-600 dark:text-red-400"></p>
+          </div>
+          <form id="changePasswordForm" class="space-y-4">
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Current Password</label
+              >
+              <input
+                type="password"
+                id="currentPassword"
+                required
+                autocomplete="current-password"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >New Password</label
+              >
+              <input
+                type="password"
+                id="newPassword"
+                required
+                minlength="6"
+                autocomplete="new-password"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                At least 6 characters.
+              </p>
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Confirm New Password</label
+              >
+              <input
+                type="password"
+                id="confirmNewPassword"
+                required
+                minlength="6"
+                autocomplete="new-password"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div class="flex space-x-3 pt-4">
+              <button
+                type="submit"
+                id="changePasswordSubmit"
+                class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onclick="closeChangePasswordModal()"
+                class="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Shop Modal -->
+    <div
+      id="editShopModal"
+      class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full"
+      >
+        <div class="p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+              Edit Shop
+            </h3>
+            <button
+              onclick="closeEditShopModal()"
+              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+          <form id="editShopForm" class="space-y-4">
+            <input type="hidden" id="editShopId" />
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Shop Name</label
+              >
+              <input
+                type="text"
+                id="editShopName"
+                required
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div class="flex space-x-3 pt-4">
+              <button
+                type="submit"
+                class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onclick="closeEditShopModal()"
+                class="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Shop Transaction Modal -->
+    <div
+      id="editShopTransactionModal"
+      class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full"
+      >
+        <div class="p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3
+              id="editShopTransactionTitle"
+              class="text-lg font-semibold text-gray-900 dark:text-white"
+            >
+              Edit Transaction
+            </h3>
+            <button
+              onclick="closeEditShopTransactionModal()"
+              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+          <form id="editShopTransactionForm" class="space-y-4">
+            <input type="hidden" id="editShopTransactionId" />
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Amount</label
+              >
+              <input
+                type="number"
+                id="editShopTransactionAmount"
+                required
+                min="0.01"
+                step="0.01"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Description</label
+              >
+              <input
+                type="text"
+                id="editShopTransactionDescription"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div class="flex space-x-3 pt-4">
+              <button
+                type="submit"
+                class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onclick="closeEditShopTransactionModal()"
+                class="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
     <!-- Add Shop Modal -->
     <div
       id="addShopModal"
@@ -957,6 +1180,65 @@
               <button
                 type="button"
                 onclick="closeBudgetCategoryModal()"
+                class="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Debt Payments Budget Modal -->
+    <div
+      id="debtBudgetModal"
+      class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full"
+      >
+        <div class="p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+              Debt Payments Budget
+            </h3>
+            <button
+              onclick="closeDebtBudgetModal()"
+              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+          <form id="debtBudgetForm" class="space-y-4">
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+              Monthly target for all personal loan, credit card, bank EMI and
+              shop credit repayments. Actuals are counted automatically from
+              your payments.
+            </p>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >Monthly Budget</label
+              >
+              <input
+                type="number"
+                id="debtBudgetAmount"
+                min="0"
+                step="0.01"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div class="flex space-x-3 pt-4">
+              <button
+                type="submit"
+                class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onclick="closeDebtBudgetModal()"
                 class="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500"
               >
                 Cancel

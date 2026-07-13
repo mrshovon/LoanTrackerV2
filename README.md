@@ -170,16 +170,30 @@ npm start
 
 ## Environment Variables
 
-Create a `.env.local` file with your Firebase configuration:
+### Welcome email
 
-```env
-NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+New signups are sent a welcome email by `api/send-welcome.js`, a serverless
+function that calls [Resend](https://resend.com). The API key stays on the
+server and is never exposed to the browser.
+
+| Variable | Required | Default | Purpose |
+| --- | --- | --- | --- |
+| `RESEND_API_KEY` | yes | – | From https://resend.com/api-keys. Without it the endpoint returns 503 and no email is sent (signup still succeeds). |
+| `APP_URL` | recommended | `http://localhost:3000` | Where the email's **Sign in** button points. Set this to your production URL on Vercel. |
+| `MAIL_FROM` | no | `Loan Tracker <onboarding@resend.dev>` | Sender address. Using your own domain requires verifying it in Resend first. |
+
+**Vercel:** add these under Project → Settings → Environment Variables, then redeploy.
+
+**Locally:** export them before starting the server, e.g.
+
+```bash
+RESEND_API_KEY=re_xxx APP_URL=http://localhost:3000 npm start
 ```
+
+### Firebase
+
+Firebase configuration is currently hardcoded in `index.html` rather than read
+from environment variables.
 
 ## Contributing
 

@@ -163,6 +163,21 @@
     animation: fadeIn 0.3s ease-out;
 }
 
+/* Modal stacking order.
+   Every modal is Tailwind z-50, so without this the one that happens to sit
+   later in index.html wins - which put the confirm dialog *behind* the history
+   modal it was opened from. These modals can open on top of another modal, so
+   they get their own layer. Toasts stay above everything. */
+#confirmModal,
+#paymentModal,
+#editShopTransactionModal {
+    z-index: 60;
+}
+
+#toastContainer {
+    z-index: 70;
+}
+
 /* Chart container */
 .chart-container {
     position: relative;

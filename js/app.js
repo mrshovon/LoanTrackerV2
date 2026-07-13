@@ -31,7 +31,8 @@ $(document).ready(function() {
         budget: {
             categories: [],
             recurring: [],
-            entries: []
+            entries: [],
+            debtBudget: 0
         }
     };
     
@@ -109,88 +110,222 @@ $(document).ready(function() {
         updateCurrencyDisplay();
     }
     
-    function login(email, password) {
-    // Hide error message initially
-    $('#loginError').addClass('hidden');
-    
-    // Demo authentication - in production, this would validate against a backend
-    if (email === 'demo@example.com' && password === 'demo123') {
-        const user = {
-            uid: 'demo-user',
-            email: email,
-            displayName: 'Demo User',
-            createdAt: new Date().toISOString()
+    // Passwords are salted + SHA-256 hashed before being stored on the user record.
+    // NOTE: this is a client-side check against a client-readable database. It stops
+    // someone guessing a password at the login form, but anyone able to read the
+    // Realtime DB directly can still see the hash. Database rules are what actually
+    // protect the data.
+    const PASSWORD_MIN_LENGTH = 6;
+
+    function generateSalt() {
+        const bytes = new Uint8Array(16);
+        window.crypto.getRandomValues(bytes);
+        return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    function hashPassword(password, salt) {
+        const data = new TextEncoder().encode(salt + ':' + password);
+        return window.crypto.subtle.digest('SHA-256', data).then(function(digest) {
+            return Array.from(new Uint8Array(digest))
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+        });
+    }
+
+    // Keep the password hash out of localStorage - only identity fields belong there.
+    function publicUser(user) {
+        return {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            createdAt: user.createdAt
         };
-        
-        localStorage.setItem('loanTrackerUser', JSON.stringify(user));
-        app.currentUser = user;
+    }
+
+    function completeLogin(user) {
+        const safeUser = publicUser(user);
+        localStorage.setItem('loanTrackerUser', JSON.stringify(safeUser));
+        app.currentUser = safeUser;
         loadUserData();
         showMainApp();
         $('#loginEmail').val('');
         $('#loginPassword').val('');
-        return true; // Return true to indicate success
-    } else {
-        // Check for other users in Firebase (only runs if not demo login)
+    }
+
+    function showLoginError(message) {
+        $('#loginError').removeClass('hidden').find('p').text(message);
+    }
+
+    function storePassword(uid, password) {
+        const salt = generateSalt();
+        return hashPassword(password, salt).then(function(hash) {
+            return database.ref('users/' + uid).update({
+                passwordSalt: salt,
+                passwordHash: hash
+            });
+        });
+    }
+
+    function login(email, password) {
+        // Hide error message initially
+        $('#loginError').addClass('hidden');
+
+        // Demo authentication - in production, this would validate against a backend
+        if (email === 'demo@example.com' && password === 'demo123') {
+            const user = {
+                uid: 'demo-user',
+                email: email,
+                displayName: 'Demo User',
+                createdAt: new Date().toISOString()
+            };
+
+            completeLogin(user);
+            return true; // Return true to indicate success
+        }
+
         database.ref('users').orderByChild('email').equalTo(email).once('value', function(snapshot) {
             const users = snapshot.val();
             const foundUser = users ? Object.values(users)[0] : null;
-            
-            if (foundUser && password.length >= 6) {
-                localStorage.setItem('loanTrackerUser', JSON.stringify(foundUser));
-                app.currentUser = foundUser;
-                loadUserData();
-                showMainApp();
-                $('#loginEmail').val('');
-                $('#loginPassword').val('');
-            } else {
-                // Only show error if user is not already logged in
-                if (!app.currentUser || $('#authPage').is(':visible')) {
-                    $('#loginError').removeClass('hidden').find('p').text('Invalid email or password');
-                }
+
+            if (!foundUser) {
+                showLoginError('Invalid email or password');
+                return;
             }
+
+            if (foundUser.passwordHash && foundUser.passwordSalt) {
+                hashPassword(password, foundUser.passwordSalt).then(function(hash) {
+                    if (hash === foundUser.passwordHash) {
+                        completeLogin(foundUser);
+                    } else {
+                        showLoginError('Invalid email or password');
+                    }
+                });
+                return;
+            }
+
+            // Account predates passwords: adopt the one supplied now so the
+            // account is protected from this login onwards.
+            if (password.length < PASSWORD_MIN_LENGTH) {
+                showLoginError('Password must be at least ' + PASSWORD_MIN_LENGTH + ' characters');
+                return;
+            }
+            storePassword(foundUser.uid, password).then(function() {
+                completeLogin(foundUser);
+                showToast('Password set for your account', 'success');
+            }).catch(function() {
+                showLoginError('Could not set your password. Please try again.');
+            });
         });
-        
+
         return false; // Firebase login is async, return false initially
     }
-}
-    
+
+    // Fire-and-forget: the account already exists at this point, so a mail failure
+    // must never block the user from getting into the app. The API key lives on the
+    // server (api/send-welcome.js) - nothing secret is sent from here.
+    function sendWelcomeEmail(name, email) {
+        try {
+            return fetch('/api/send-welcome', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name, email: email })
+            }).then(function(response) {
+                if (!response.ok) {
+                    console.warn('Welcome email was not sent (HTTP ' + response.status + ')');
+                }
+            }).catch(function(error) {
+                console.warn('Welcome email request failed:', error);
+            });
+        } catch (error) {
+            // Never let this stop the new user from reaching the app.
+            console.warn('Welcome email could not be requested:', error);
+        }
+    }
+
     function signup(name, email, password) {
+        if (!password || password.length < PASSWORD_MIN_LENGTH) {
+            $('#signupError').removeClass('hidden').find('p').text('Password must be at least ' + PASSWORD_MIN_LENGTH + ' characters');
+            return;
+        }
+
         // Check if user already exists
         database.ref('users').orderByChild('email').equalTo(email).once('value', function(snapshot) {
             if (snapshot.exists()) {
                 $('#signupError').removeClass('hidden').find('p').text('Email already exists');
                 return;
             }
-            
+
             const newUser = {
                 uid: Date.now().toString(),
                 email: email,
                 displayName: name,
                 createdAt: new Date().toISOString()
             };
-            
-            // Save to Firebase
-            database.ref('users/' + newUser.uid).set(newUser, function(error) {
-                if (error) {
-                    $('#signupError').removeClass('hidden').find('p').text('Registration failed. Please try again.');
-                } else {
-                    localStorage.setItem('loanTrackerUser', JSON.stringify(newUser));
-                    app.currentUser = newUser;
-                    
-                    // Initialize user data structure
-                    database.ref('userData/' + newUser.uid).set({
-                        loans: {
-                            personal: [],
-                            credit: [],
-                            bank: []
-                        },
-                        transactions: []
-                    });
-                    
-                    loadUserData();
-                    showMainApp();
-                }
+
+            const salt = generateSalt();
+            hashPassword(password, salt).then(function(hash) {
+                const record = Object.assign({}, newUser, { passwordSalt: salt, passwordHash: hash });
+
+                // Save to Firebase
+                database.ref('users/' + newUser.uid).set(record, function(error) {
+                    if (error) {
+                        $('#signupError').removeClass('hidden').find('p').text('Registration failed. Please try again.');
+                    } else {
+                        localStorage.setItem('loanTrackerUser', JSON.stringify(newUser));
+                        app.currentUser = newUser;
+
+                        // Initialize user data structure
+                        database.ref('userData/' + newUser.uid).set({
+                            loans: {
+                                personal: [],
+                                credit: [],
+                                bank: []
+                            },
+                            transactions: []
+                        });
+
+                        sendWelcomeEmail(newUser.displayName, newUser.email);
+
+                        loadUserData();
+                        showMainApp();
+                    }
+                });
             });
+        });
+    }
+
+    // Returns a Promise so the UI can keep the modal open on failure.
+    function changePassword(currentPassword, newPassword) {
+        if (!app.currentUser) {
+            return Promise.reject(new Error('You are not signed in'));
+        }
+        if (app.currentUser.uid === 'demo-user') {
+            return Promise.reject(new Error('The demo account password cannot be changed'));
+        }
+        if (!newPassword || newPassword.length < PASSWORD_MIN_LENGTH) {
+            return Promise.reject(new Error('New password must be at least ' + PASSWORD_MIN_LENGTH + ' characters'));
+        }
+
+        const uid = app.currentUser.uid;
+        return database.ref('users/' + uid).once('value').then(function(snapshot) {
+            const record = snapshot.val();
+            if (!record) throw new Error('Your account could not be found');
+
+            // No hash yet means the account still predates passwords; there is
+            // nothing to verify against, so just set the new one.
+            if (!record.passwordHash || !record.passwordSalt) {
+                return null;
+            }
+            return hashPassword(currentPassword, record.passwordSalt).then(function(hash) {
+                if (hash !== record.passwordHash) {
+                    throw new Error('Current password is incorrect');
+                }
+                return null;
+            });
+        }).then(function() {
+            return storePassword(uid, newPassword);
+        }).then(function() {
+            showToast('Password changed successfully', 'success');
         });
     }
     
@@ -273,7 +408,8 @@ $(document).ready(function() {
             app.budget = {
                 categories: normalize(budget.categories),
                 recurring: normalize(budget.recurring),
-                entries: normalize(budget.entries)
+                entries: normalize(budget.entries),
+                debtBudget: typeof budget.debtBudget === 'number' ? budget.debtBudget : 0
             };
 
             // refresh page if viewing budget
@@ -341,254 +477,9 @@ $(document).ready(function() {
     
     
     
-    function loadBankLoans() {
-        const bankLoans = app.loans && app.loans.bank ? app.loans.bank : [];
-        const html = `
-            <div class="space-y-6">
-                <div class="flex justify-between items-center">
-                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Bank Loans</h1>
-                    <button class="btn bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700" onclick="showAddBankLoanModal()">
-                        <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
-                        Add Bank Loan
-                    </button>
-                </div>
-                
-                <!-- Summary Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Loans</p>
-                        <p class="text-2xl font-bold text-gray-900 dark:text-white">${bankLoans.length}</p>
-                    </div>
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Principal</p>
-                        <p class="text-2xl font-bold text-orange-600 dark:text-orange-400">${formatCurrency(calculateBankLoansPrincipal())}</p>
-                    </div>
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Paid</p>
-                        <p class="text-2xl font-bold text-green-600 dark:text-green-400">${formatCurrency(calculateBankLoansPaid())}</p>
-                    </div>
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Monthly EMI</p>
-                        <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">${formatCurrency(calculateBankLoansEMI())}</p>
-                    </div>
-                </div>
-                
-                <!-- Bank Loans List -->
-                <div class="space-y-4">
-                    ${bankLoans.map(loan => {
-                        const emi = calculateEMI(loan.principalAmount, loan.annualInterestRate, loan.tenureMonths, loan.interestMethod || 'reducing');
-                        const progressPercentage = ((loan.tenureMonths - loan.monthsRemaining) / loan.tenureMonths) * 100;
-                        
-                        return `
-                            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow card-hover">
-                                <div class="flex justify-between items-start mb-4">
-                                    <div>
-                                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${loan.bankName}</h3>
-                                        <p class="text-sm text-gray-500 dark:text-gray-400">Started: ${new Date(loan.startDate).toLocaleDateString()}</p>
-                                    </div>
-                                    <div class="flex space-x-2">
-                                        <button class="btn text-orange-600 hover:text-orange-800" onclick="editBankLoan('${loan.id}')">
-                                            <i data-lucide="edit" class="w-4 h-4"></i>
-                                        </button>
-                                        <button class="btn text-purple-600 hover:text-purple-800" onclick="showLoanHistory('bank', '${loan.id}', '${loan.bankName}')">
-                                            <i data-lucide="history" class="w-4 h-4"></i>
-                                        </button>
-                                        <button class="btn text-red-600 hover:text-red-800" onclick="deleteBankLoan('${loan.id}')">
-                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                                
-                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                                    <div>
-                                        <p class="text-sm text-gray-600 dark:text-gray-400">Principal</p>
-                                        <p class="text-lg font-semibold text-gray-900 dark:text-white">${formatCurrency(loan.principalAmount)}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-sm text-gray-600 dark:text-gray-400">Interest Rate</p>
-                                        <p class="text-lg font-semibold text-orange-600 dark:text-orange-400">${loan.annualInterestRate}%</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-sm text-gray-600 dark:text-gray-400">Monthly EMI</p>
-                                        <p class="text-lg font-semibold text-blue-600 dark:text-blue-400">${formatCurrency(emi)}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-sm text-gray-600 dark:text-gray-400">Months Remaining</p>
-                                        <p class="text-lg font-semibold text-gray-900 dark:text-white">${loan.monthsRemaining}</p>
-                                    </div>
-                                </div>
-                                
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                                    <div>
-                                        <p class="text-sm text-gray-600 dark:text-gray-400">Total Paid</p>
-                                        <p class="text-lg font-semibold text-green-600 dark:text-green-400">${formatCurrency(loan.totalPaid)}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-sm text-gray-600 dark:text-gray-400">Outstanding</p>
-                                        <p class="text-lg font-semibold text-red-600 dark:text-red-400">${formatCurrency(loan.currentOutstanding)}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-sm text-gray-600 dark:text-gray-400">Tenure</p>
-                                        <p class="text-lg font-semibold text-gray-900 dark:text-white">${loan.tenureMonths} months</p>
-                                    </div>
-                                </div>
-                                
-                                <div class="mb-4">
-                                    <div class="flex justify-between text-sm mb-1">
-                                        <span class="text-gray-600 dark:text-gray-400">Loan Progress</span>
-                                        <span class="text-gray-600 dark:text-gray-400">${Math.round(progressPercentage)}% (${loan.tenureMonths - loan.monthsRemaining}/${loan.tenureMonths} months)</span>
-                                    </div>
-                                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                        <div class="bg-orange-600 h-2 rounded-full progress-bar" style="width: ${progressPercentage}%"></div>
-                                    </div>
-                                </div>
-                                
-                                <div class="flex space-x-2">
-                                    <button class="btn bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700" onclick="makeBankLoanPayment('${loan.id}')">
-                                        Pay EMI (${formatCurrency(emi)})
-                                    </button>
-                                    <button class="btn bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" onclick="makeBankLoanPayment('${loan.id}', ${emi * 2})">
-                                        Pay 2 EMIs
-                                    </button>
-                                    <button class="btn bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700" onclick="prepayBankLoan('${loan.id}')">
-                                        Prepay Full
-                                    </button>
-                                </div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-                
-                ${bankLoans.length === 0 ? `
-                    <div class="bg-white dark:bg-gray-800 p-12 rounded-lg shadow text-center">
-                        <i data-lucide="building" class="w-12 h-12 text-gray-400 mx-auto mb-4"></i>
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Bank Loans</h3>
-                        <p class="text-gray-600 dark:text-gray-400 mb-4">You haven't added any bank loans yet.</p>
-                        <button class="btn bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700" onclick="showAddBankLoanModal()">
-                            Add Your First Bank Loan
-                        </button>
-                    </div>
-                ` : ''}
-            </div>
-        `;
-        
-        $('#content').html(html);
-        lucide.createIcons();
-    }
-    
-    function loadCharts() {
-        const html = `
-            <div class="space-y-6">
-                <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Analytics</h1>
-                
-                <!-- Debt Breakdown Chart -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Debt Breakdown</h2>
-                    <div class="chart-container">
-                        <canvas id="debtChart"></canvas>
-                    </div>
-                </div>
-                
-                <!-- Payment Progress Chart -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Payment Progress</h2>
-                    <div class="chart-container">
-                        <canvas id="progressChart"></canvas>
-                    </div>
-                </div>
-                
-                <!-- Monthly Payments Chart -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Monthly Payments</h2>
-                    <div class="chart-container">
-                        <canvas id="monthlyChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        $('#content').html(html);
-        
-        // Initialize charts
-        setTimeout(() => {
-            initCharts();
-        }, 100);
-    }
-    
-    function loadHistory() {
-        const html = `
-            <div class="space-y-6">
-                <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Transaction History</h1>
-                
-                <!-- Summary Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Transactions</p>
-                        <p class="text-2xl font-bold text-gray-900 dark:text-white">${app.transactions.length}</p>
-                    </div>
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Payments</p>
-                        <p class="text-2xl font-bold text-green-600 dark:text-green-400">${formatCurrency(calculateTotalPayments())}</p>
-                    </div>
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Withdrawals</p>
-                        <p class="text-2xl font-bold text-red-600 dark:text-red-400">${formatCurrency(calculateTotalWithdrawals())}</p>
-                    </div>
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Net Flow</p>
-                        <p class="text-2xl font-bold ${calculateNetFlow() >= 0 ? 'text-green-600' : 'text-red-600'} dark:text-${calculateNetFlow() >= 0 ? 'green-400' : 'red-400'}">${formatCurrency(Math.abs(calculateNetFlow()))}</p>
-                    </div>
-                </div>
-                
-                <!-- Filters -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                    <div class="flex flex-col md:flex-row gap-4">
-                        <div class="flex-1">
-                            <input type="text" id="searchTransactions" placeholder="Search transactions..." class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
-                        </div>
-                        <div class="flex gap-2">
-                            <button class="btn filter-btn bg-blue-600 text-white px-4 py-2 rounded-lg" data-filter="all">All</button>
-                            <button class="btn filter-btn bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg" data-filter="payment">Payments</button>
-                            <button class="btn filter-btn bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg" data-filter="withdrawal">Withdrawals</button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Transactions List -->
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
-                    <div class="p-6">
-                        <div id="transactionsList" class="space-y-3">
-                            ${getFilteredTransactions('all').map(t => `
-                                <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
-                                    <div class="flex items-center space-x-4">
-                                        <div class="p-2 ${t.type === 'payment' ? 'bg-green-100' : 'bg-red-100'} rounded-full">
-                                            <i data-lucide="${t.type === 'payment' ? 'arrow-down' : 'arrow-up'}" class="w-5 h-5 ${t.type === 'payment' ? 'text-green-600' : 'text-red-600'}"></i>
-                                        </div>
-                                        <div>
-                                            <p class="font-medium text-gray-900 dark:text-white">${t.description}</p>
-                                            <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                                                <span class="capitalize">${t.category}</span>
-                                                <span>•</span>
-                                                <span>${new Date(t.date).toLocaleDateString()}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="text-right">
-                                        <p class="font-semibold ${t.type === 'payment' ? 'text-green-600' : 'text-red-600'}">
-                                            ${t.type === 'payment' ? '-' : '+'}${formatCurrency(t.amount)}
-                                        </p>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        $('#content').html(html);
-        lucide.createIcons();
-    }
+    // NOTE: loadBankLoans, loadCharts and loadHistory live in js/ui.js (window.*).
+    // Stale private copies used to shadow them here, so the Firebase listeners above
+    // re-rendered these pages from outdated markup whenever data changed.
     
     // Calculation functions
     function calculateTotalDebt() {
@@ -1054,6 +945,104 @@ $(document).ready(function() {
                 loadCreditBalance && loadCreditBalance();
             }
 
+            // Shop totals are derived from its transactions, so any edit or deletion
+            // can simply recompute them rather than trying to patch the running totals.
+            function shopTotalsFrom(shopId, transactions) {
+                const txs = transactions.filter(t => t.category === 'shop' && t.shopId === shopId);
+                const totalCredit = txs.filter(t => t.type === 'withdrawal').reduce((s, t) => s + (t.amount || 0), 0);
+                const totalPaid = txs.filter(t => t.type === 'payment').reduce((s, t) => s + (t.amount || 0), 0);
+                return {
+                    totalCredit: totalCredit,
+                    totalPaid: totalPaid,
+                    currentOutstanding: totalCredit - totalPaid
+                };
+            }
+
+            function applyShopTotals(shop, transactions) {
+                Object.assign(shop, shopTotalsFrom(shop.id, transactions));
+            }
+
+            function updateShop(id, name) {
+                const shop = app.loans.shops.find(s => s.id === id);
+                if (!shop) return;
+
+                shop.name = name;
+                saveShopsToFirebase();
+                saveLoansToFirebase();
+                showToast('Shop updated successfully', 'success');
+                loadCreditBalance && loadCreditBalance();
+            }
+
+            function deleteShop(id) {
+                const shop = app.loans.shops.find(s => s.id === id);
+                if (!shop) return;
+
+                showConfirmDialog(
+                    `Are you sure you want to delete ${shop.name}? All of its transactions will also be deleted.`,
+                    function() {
+                        app.loans.shops = app.loans.shops.filter(s => s.id !== id);
+                        app.transactions = app.transactions.filter(t => !(t.category === 'shop' && t.shopId === id));
+                        saveShopsToFirebase();
+                        saveLoansToFirebase();
+                        saveTransactionsToFirebase();
+                        loadCreditBalance && loadCreditBalance();
+                        showToast('Shop and related transactions deleted successfully', 'success');
+                    }
+                );
+            }
+
+            function updateShopTransaction(transactionId, amount, description) {
+                const transaction = app.transactions.find(t => t.id === transactionId && t.category === 'shop');
+                if (!transaction) return;
+                const shop = app.loans.shops.find(s => s.id === transaction.shopId);
+                if (!shop) return;
+
+                const previous = { amount: transaction.amount, description: transaction.description };
+                transaction.amount = amount;
+                transaction.description = description || previous.description;
+
+                if (shopTotalsFrom(shop.id, app.transactions).currentOutstanding < 0) {
+                    Object.assign(transaction, previous);
+                    showToast('This change would make the shop\'s outstanding negative', 'error');
+                    return;
+                }
+
+                applyShopTotals(shop, app.transactions);
+                saveShopsToFirebase();
+                saveLoansToFirebase();
+                saveTransactionsToFirebase();
+                showToast('Transaction updated successfully', 'success');
+                loadCreditBalance && loadCreditBalance();
+            }
+
+            function deleteShopTransaction(transactionId) {
+                const transaction = app.transactions.find(t => t.id === transactionId && t.category === 'shop');
+                if (!transaction) return;
+                const shop = app.loans.shops.find(s => s.id === transaction.shopId);
+                if (!shop) return;
+
+                showConfirmDialog(
+                    'Are you sure you want to delete this transaction? The shop balance will be recalculated.',
+                    function() {
+                        const remaining = app.transactions.filter(t => t.id !== transactionId);
+
+                        if (shopTotalsFrom(shop.id, remaining).currentOutstanding < 0) {
+                            showToast('Deleting this would make the shop\'s outstanding negative', 'error');
+                            return;
+                        }
+
+                        app.transactions = remaining;
+                        applyShopTotals(shop, app.transactions);
+                        saveShopsToFirebase();
+                        saveLoansToFirebase();
+                        saveTransactionsToFirebase();
+                        closeHistoryModal && closeHistoryModal();
+                        loadCreditBalance && loadCreditBalance();
+                        showToast('Transaction deleted successfully', 'success');
+                    }
+                );
+            }
+
             function makeShopPayment(shopId, amount, description) {
                 const shop = app.loans.shops.find(s => s.id === shopId);
                 if (!shop) return;
@@ -1085,10 +1074,21 @@ $(document).ready(function() {
 
             // ---- Budget feature ----
             function ensureBudget() {
-                if (!app.budget) app.budget = { categories: [], recurring: [], entries: [] };
+                if (!app.budget) app.budget = { categories: [], recurring: [], entries: [], debtBudget: 0 };
                 if (!app.budget.categories) app.budget.categories = [];
                 if (!app.budget.recurring) app.budget.recurring = [];
                 if (!app.budget.entries) app.budget.entries = [];
+                if (typeof app.budget.debtBudget !== 'number') app.budget.debtBudget = 0;
+            }
+
+            // Monthly target for the auto-derived "Debt Payments" category,
+            // whose actuals come from payment transactions rather than budget items.
+            function setDebtPaymentsBudget(amount) {
+                ensureBudget();
+                app.budget.debtBudget = amount || 0;
+                saveBudgetToFirebase();
+                showToast('Debt Payments budget updated successfully', 'success');
+                loadBudget && loadBudget();
             }
 
             function addBudgetCategory(name, type, monthlyBudget) {
@@ -1695,16 +1695,6 @@ $(document).ready(function() {
             navigateTo('bank');
         });
         
-        // Search transactions
-        $('#searchTransactions').on('input', function() {
-            const searchTerm = $(this).val().toLowerCase();
-            const $transactions = $('#transactionsList > div');
-            
-            $transactions.each(function() {
-                const text = $(this).text().toLowerCase();
-                $(this).toggle(text.includes(searchTerm));
-            });
-        });
     }
     
     // Initialize sample data for demo user
@@ -2014,12 +2004,18 @@ $(document).ready(function() {
         addShop: addShop,
         addShopCredit: addShopCredit,
         makeShopPayment: makeShopPayment,
+        updateShop: updateShop,
+        deleteShop: deleteShop,
+        updateShopTransaction: updateShopTransaction,
+        deleteShopTransaction: deleteShopTransaction,
+        changePassword: changePassword,
         addBudgetCategory: addBudgetCategory,
         updateBudgetCategory: updateBudgetCategory,
         deleteBudgetCategory: deleteBudgetCategory,
         addBudgetItem: addBudgetItem,
         updateBudgetItem: updateBudgetItem,
         deleteBudgetItem: deleteBudgetItem,
+        setDebtPaymentsBudget: setDebtPaymentsBudget,
         calculateTotalDebt: calculateTotalDebt,
         calculatePersonalLoansTotal: calculatePersonalLoansTotal,
         calculatePersonalLoansPaid: calculatePersonalLoansPaid,
