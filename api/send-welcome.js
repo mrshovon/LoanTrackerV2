@@ -116,9 +116,27 @@ function welcomeHtml(name, appUrl) {
 </html>`;
 }
 
+// Resend requires exactly "email@example.com" or "Name <email@example.com>".
+// Env vars are stored literally, so a value pasted with wrapping quotes or stray
+// whitespace arrives malformed. Clean it up, and fall back to the default sender
+// rather than failing the send outright.
+function normalizeFrom(raw) {
+    if (!raw) return DEFAULT_FROM;
+
+    const value = String(raw).trim().replace(/^["']|["']$/g, '').trim();
+    const bare = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
+    const named = /^[^<>]+<\s*[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+\s*>$/;
+
+    if (bare.test(value) || named.test(value)) return value;
+
+    console.warn(`MAIL_FROM is not a valid sender ("${raw}"); falling back to ${DEFAULT_FROM}. ` +
+        'Use email@example.com or Name <email@example.com>, with no surrounding quotes.');
+    return DEFAULT_FROM;
+}
+
 async function sendWelcomeEmail(name, email) {
     const appUrl = process.env.APP_URL || DEFAULT_APP_URL;
-    const from = process.env.MAIL_FROM || DEFAULT_FROM;
+    const from = normalizeFrom(process.env.MAIL_FROM);
 
     const response = await fetch(RESEND_ENDPOINT, {
         method: 'POST',
