@@ -98,7 +98,44 @@
         }).catch(function () { /* App plugin unavailable */ });
     }
 
-    window.ArclendUpdate = { check: check };
+    // --- "Download Android app" button (web only) ---------------------------
+    var DEFAULT_APK_URL = 'https://github.com/mrshovon/LoanTrackerV2/raw/master/releases/Arclend.apk';
+
+    function getDb() {
+        return (typeof database !== 'undefined' && database) ? database : (window.database || null);
+    }
+
+    // Open the latest published APK for download. Prefers appConfig/latest.apkUrl,
+    // falls back to the canonical master URL.
+    function download() {
+        var db = getDb();
+        if (!db) { openUrl(DEFAULT_APK_URL); return; }
+        db.ref('appConfig/latest').once('value')
+            .then(function (snap) { openUrl((snap.val() || {}).apkUrl || DEFAULT_APK_URL); })
+            .catch(function () { openUrl(DEFAULT_APK_URL); });
+    }
+
+    // Wire the download buttons on web; hide them inside the native app (it's
+    // already installed there).
+    function initDownloadUI() {
+        var els = document.querySelectorAll('.arclend-download');
+        if (IS_NATIVE) {
+            els.forEach(function (el) { el.style.display = 'none'; });
+            return;
+        }
+        var db = getDb();
+        if (db) {
+            db.ref('appConfig/latest').once('value').then(function (snap) {
+                var cfg = snap.val() || {};
+                var label = document.getElementById('downloadAppVersion');
+                if (label && cfg.versionName) label.textContent = '(v' + cfg.versionName + ')';
+            }).catch(function () { /* leave label empty */ });
+        }
+    }
+
+    window.ArclendUpdate = { check: check, download: download };
+
+    initDownloadUI();
 
     if (IS_NATIVE) {
         // Give Firebase a moment to connect, then check; re-check on resume.
