@@ -1,0 +1,7 @@
+{
+  "versionCode": 2,
+  "versionName": "1.1",
+  "apkUrl": "https://github.com/mrshovon/LoanTrackerV2/raw/master/releases/Arclend.apk?v=2",
+  "notes": "In-app update prompt, notification test button, and more reliable exact alarms",
+  "mandatory": false
+}
