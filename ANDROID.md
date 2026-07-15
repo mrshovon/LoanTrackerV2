@@ -91,37 +91,47 @@ keytool -genkeypair -v -keystore keystore/arclend-release.jks -alias arclend \
   -keyalg RSA -keysize 2048 -validity 10000
 ```
 
-## Shipping an update (manual, with in-app prompt)
+## Shipping an update — one command
 
 The installed app can't auto-update its code (it ships a snapshot). Instead it
-shows a **"Update available"** popup driven by one Firebase node, so publishing an
-update is: build a new APK, host it, bump one number.
+shows an **"Update available"** popup, and one command publishes a new version:
 
-**One-time:** host the APK somewhere with a direct-download URL (GitHub Releases,
-Firebase Storage, your Vercel `public/`, etc.).
+```bash
+npm run release -- <versionName> "<notes>"
+# e.g.
+npm run release -- 1.2 "• Faster charts\n• Fixed a login bug"
+```
 
-**Each release:**
-1. Bump `versionCode` (and `versionName`) in `android/app/build.gradle`
-   (`versionCode 2`, `versionName "1.1"`, …).
-2. `npm run sync:android` + `assembleRelease` (see above) → new signed APK.
-   **Sign every release with the same keystore** or it won't install over the old one.
-3. Upload the new APK to your download URL.
-4. In the **Firebase console → Realtime Database**, set `appConfig/latest`:
-   ```json
-   {
-     "versionCode": 2,
-     "versionName": "1.1",
-     "apkUrl": "https://your-host/arclend-1.1.apk",
-     "notes": "• What changed\n• Another line",
-     "mandatory": false
-   }
-   ```
-   Any installed app whose `versionCode` is lower shows the update popup on next
-   launch/resume; tapping **Update** opens `apkUrl` to download + install.
-   `mandatory: true` hides the "Later" button.
+`scripts/release.mjs` does everything:
+1. Bumps `versionCode` (auto-increment) and `versionName` in
+   `android/app/build.gradle`.
+2. Builds the **signed** release APK (needs the keystore + JDK 21+).
+3. Replaces the single committed artifact **`releases/Arclend.apk`** (old one
+   deleted) and records the version in tracked **`releases/latest.json`**.
+4. Updates the Firebase node `appConfig/latest` (versionCode, versionName,
+   `apkUrl`, notes) that drives the popup.
+5. `git commit` + `git push origin master`.
 
-The popup logic lives in `js/update.js`; it reads the app's own `versionCode`
-via `@capacitor/app` and compares it to `appConfig/latest`.
+Any installed app on a lower `versionCode` then shows **"Update available"** on
+next launch/resume; tapping **Update** opens the APK's public GitHub URL to
+download, and the user taps the file to install over the old app (data kept).
+Add `--mandatory` to hide the "Later" button.
+
+Notes:
+- The download URL is `https://github.com/mrshovon/LoanTrackerV2/raw/master/releases/Arclend.apk?v=<versionCode>`
+  (works because the repo is public; `?v=` busts GitHub's ~5-min CDN cache, so a
+  brand-new release may take a few minutes to reach everyone).
+- **Sign every release with the same keystore** (already wired) or it won't
+  install over the old app.
+- If `git push` can't authenticate, the script says so — just run
+  `git push origin master` yourself; everything else is already done.
+- The popup logic is in `js/update.js`; it reads the app's own `versionCode` via
+  `@capacitor/app` and compares it to `appConfig/latest`.
+
+### Manual fallback (no script)
+Build a signed APK, replace `releases/Arclend.apk`, `git push`, and set
+`appConfig/latest` in the **Firebase console → Realtime Database** by hand with
+the same JSON shape shown in `releases/latest.json`.
 
 ## If notifications don't arrive on a phone
 

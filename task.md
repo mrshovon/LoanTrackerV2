@@ -106,7 +106,29 @@ work proceeds. Branch: `feature/android-capacitor-alerts`.
 
 ### 4c. Signed release  ✅
 - [x] Rebuilt signed `app-release.apk` (4.0 MB, v2 signature) with 4a+4b
-- Distributable copy: `Arclend-release.apk` at repo root
+
+---
+
+## Epic 5 — One-command release pipeline + working update  ✅
+
+- [x] `releases/Arclend.apk` — single committed APK (deleted+replaced each
+      release); `releases/latest.json` — tracked version record
+- [x] `.gitignore`: only root `/Arclend*.apk` ignored; `releases/` tracked;
+      secrets (`/keystore`, `android/keystore.properties`) stay ignored
+- [x] Merged feature branch → **master**, pushed (raw URL needs a slash-free branch)
+- [x] `scripts/release.mjs` (`npm run release -- <ver> "<notes>"`): bump version,
+      build signed APK, replace `releases/Arclend.apk` + `latest.json`, update
+      Firebase `appConfig/latest`, git commit + push master. Fixed two Windows/git
+      bugs (npx.cmd spawn needs shell; can't `git add` ignored `build.gradle`)
+- [x] Public download URL verified: `…/raw/master/releases/Arclend.apk?v=N` → 200
+- [x] **End-to-end verified on emulator:** ran `npm run release -- 1.1`; v1 app
+      showed "Update available — Version 1.1" popup with published notes; the APK
+      from the real GitHub URL installed over v1 → **versionCode 1 → 2** (data kept)
+- [x] Keystore password removed from `ANDROID.md` (never committed); release
+      workflow documented
+
+## Status: ✅ ALL COMPLETE — Android app, alerts, notifications, and a
+one-command release pipeline with a working in-app update prompt.
 
 ---
 

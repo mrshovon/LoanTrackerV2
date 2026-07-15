@@ -25,6 +25,9 @@ const JAVA_HOME = process.env.JAVA_HOME || 'C:\\Program Files\\Java\\jdk-22';
 const BUILD_GRADLE = join(root, 'android', 'app', 'build.gradle');
 const RELEASES_DIR = join(root, 'releases');
 const CANONICAL_APK = join(RELEASES_DIR, 'Arclend.apk');
+// Tracked version source of truth (android/ is git-ignored, so build.gradle can't
+// be committed). This file records the published version and is committed each release.
+const LATEST_JSON = join(RELEASES_DIR, 'latest.json');
 const BUILT_APK = join(root, 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk');
 
 // --- args --------------------------------------------------------------------
@@ -41,8 +44,9 @@ if (!versionName) {
 }
 
 function step(msg) { console.log(`\n▶ ${msg}`); }
+// shell:true so Windows .cmd/.bat launchers (npx, gradlew) spawn correctly.
 function run(cmd, args, opts = {}) {
-    return execFileSync(cmd, args, { cwd: root, stdio: 'inherit', ...opts });
+    return execFileSync(cmd, args, { cwd: root, stdio: 'inherit', shell: true, ...opts });
 }
 
 // --- 1. bump version in build.gradle ----------------------------------------
@@ -51,10 +55,17 @@ if (!existsSync(BUILD_GRADLE)) {
     console.error(`Missing ${BUILD_GRADLE}. Run "npx cap add android" first.`);
     process.exit(1);
 }
+// Version source of truth is releases/latest.json (tracked); fall back to
+// build.gradle for the very first release, then to 0.
+let oldCode = 0;
+if (existsSync(LATEST_JSON)) {
+    try { oldCode = parseInt(JSON.parse(readFileSync(LATEST_JSON, 'utf8')).versionCode, 10) || 0; } catch { /* ignore */ }
+}
 let gradle = readFileSync(BUILD_GRADLE, 'utf8');
-const codeMatch = gradle.match(/versionCode\s+(\d+)/);
-if (!codeMatch) { console.error('Could not find versionCode in build.gradle'); process.exit(1); }
-const oldCode = parseInt(codeMatch[1], 10);
+if (!oldCode) {
+    const m = gradle.match(/versionCode\s+(\d+)/);
+    oldCode = m ? parseInt(m[1], 10) : 0;
+}
 const newCode = oldCode + 1;
 gradle = gradle.replace(/versionCode\s+\d+/, `versionCode ${newCode}`);
 gradle = gradle.replace(/versionName\s+"[^"]*"/, `versionName "${versionName}"`);
@@ -64,7 +75,7 @@ console.log(`  versionCode ${oldCode} → ${newCode}, versionName "${versionName
 // --- 2. build signed release APK --------------------------------------------
 step('Building signed release APK');
 run('node', ['scripts/build-www.js']);
-run(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['cap', 'copy', 'android']);
+run('npx', ['cap', 'copy', 'android']);
 const gradlew = process.platform === 'win32'
     ? join(root, 'android', 'gradlew.bat')
     : join(root, 'android', 'gradlew');
@@ -87,6 +98,8 @@ console.log(`  → ${CANONICAL_APK}`);
 step('Updating Firebase appConfig/latest');
 const apkUrl = `https://github.com/${GITHUB_REPO}/raw/${RELEASE_BRANCH}/releases/Arclend.apk?v=${newCode}`;
 const payload = { versionCode: newCode, versionName, apkUrl, notes, mandatory };
+// Record the published version in a tracked file (committed below).
+writeFileSync(LATEST_JSON, JSON.stringify(payload, null, 2) + '\n');
 const res = await fetch(`${DATABASE_URL}/appConfig/latest.json`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -100,24 +113,29 @@ if (!res.ok) {
 }
 
 // --- 5. commit + push --------------------------------------------------------
+// Only tracked files (android/ is git-ignored). versionCode lives in the tracked
+// releases/latest.json, so build.gradle never needs committing.
 step('Committing and pushing');
+let committed = false, pushed = false;
 try {
-    run('git', ['add', 'android/app/build.gradle', 'releases/Arclend.apk']);
+    run('git', ['add', 'releases/Arclend.apk', 'releases/latest.json']);
     execSync(`git commit -m "Release v${versionName} (versionCode ${newCode})"`, { cwd: root, stdio: 'inherit' });
+    committed = true;
 } catch (e) {
     console.error('  git commit failed:', e.message);
 }
-let pushed = false;
-try {
-    run('git', ['push', 'origin', RELEASE_BRANCH]);
-    pushed = true;
-} catch (e) {
-    console.error(`  git push failed — run "git push origin ${RELEASE_BRANCH}" yourself.`);
+if (committed) {
+    try {
+        run('git', ['push', 'origin', RELEASE_BRANCH]);
+        pushed = true;
+    } catch (e) {
+        console.error(`  git push failed — run "git push origin ${RELEASE_BRANCH}" yourself.`);
+    }
 }
 
 // --- summary -----------------------------------------------------------------
 console.log(`\n✅ Released v${versionName} (versionCode ${newCode})`);
 console.log(`   APK URL: ${apkUrl}`);
 console.log(`   Firebase appConfig/latest updated${res.ok ? '' : ' — FAILED, set manually'}.`);
-console.log(`   Git push ${pushed ? 'done' : 'PENDING (push manually)'}.`);
+console.log(`   Git commit ${committed ? 'done' : 'FAILED'}; push ${pushed ? 'done' : 'PENDING (push manually)'}.`);
 if (pushed) console.log('   Users on older versions will see the update popup on next launch (allow ~5 min for GitHub CDN).');
