@@ -33,9 +33,33 @@ $(document).ready(function() {
             recurring: [],
             entries: [],
             debtBudget: 0
-        }
+        },
+        alerts: []
     };
-    
+
+    // --- Platform / server API base -----------------------------------------
+    // On the web the app is served from the same origin as its API, so relative
+    // paths (e.g. '/api/send-welcome') work. Inside the Capacitor Android app the
+    // WebView origin is http(s)://localhost with no /api, so any server call must
+    // target the deployed backend instead.
+    //
+    // TODO(deploy): set API_BASE to your Vercel URL, e.g. 'https://arclend.vercel.app'.
+    // Leaving it '' disables server calls on native — the only one today is the
+    // best-effort welcome email, and signup succeeds regardless.
+    const IS_NATIVE = !!(window.Capacitor
+        && typeof window.Capacitor.isNativePlatform === 'function'
+        && window.Capacitor.isNativePlatform());
+    const API_BASE = '';
+    window.ARCLEND_IS_NATIVE = IS_NATIVE;
+
+    // Resolve a server API path for the current platform, or null if it isn't
+    // reachable (native build with no API_BASE configured).
+    function apiUrl(path) {
+        if (!IS_NATIVE) return path;                       // same-origin on the web
+        if (!API_BASE) return null;                        // native, no server set
+        return API_BASE.replace(/\/+$/, '') + path;
+    }
+
     // Currency helper functions
     function getCurrencySymbol() {
         return app.currencyConfig[app.currency]?.symbol || '$';
@@ -225,7 +249,9 @@ $(document).ready(function() {
     // server (api/send-welcome.js) - nothing secret is sent from here.
     function sendWelcomeEmail(name, email) {
         try {
-            return fetch('/api/send-welcome', {
+            const url = apiUrl('/api/send-welcome');
+            if (!url) return; // native build without a configured API_BASE — skip
+            return fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: name, email: email })
@@ -424,8 +450,25 @@ $(document).ready(function() {
                 loadBudget && loadBudget();
             }
         });
+
+        // Load custom alerts (interval reminders scheduled as local notifications)
+        userRef.child('alerts').on('value', function(snapshot) {
+            const alerts = snapshot.val();
+            app.alerts = Array.isArray(alerts) ? alerts : (alerts ? Object.values(alerts) : []);
+
+            // refresh page if viewing alerts
+            if ($('#mainApp').is(':visible') && app.currentPage === 'alerts') {
+                window.loadAlerts && window.loadAlerts();
+            }
+
+            // Re-sync device notifications with the source of truth. Runs on every
+            // change and once on login; the engine is idempotent and native-guarded.
+            if (window.ArclendAlerts && window.ArclendAlerts.reconcile) {
+                window.ArclendAlerts.reconcile();
+            }
+        });
     }
-    
+
     function saveLoansToFirebase() {
         if (!app.currentUser) return;
         
@@ -463,7 +506,62 @@ $(document).ready(function() {
             }
         });
     }
-    
+
+    // --- Custom alerts (interval reminders) ---------------------------------
+    // Firebase stores only the alert *definition*. The device-specific local
+    // notification ids are tracked on-device by js/alerts.js. Saving an alert
+    // triggers the alerts listener above, which re-syncs the device schedule.
+    function saveAlertsToFirebase() {
+        if (!app.currentUser) return;
+        database.ref('userData/' + app.currentUser.uid + '/alerts').set(app.alerts, function(error) {
+            if (error) {
+                console.error('Error saving alerts:', error);
+            }
+        });
+    }
+
+    function addAlert(data) {
+        const alert = {
+            id: 'alert_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+            title: String(data.title || '').trim(),
+            message: String(data.message || '').trim(),
+            date: data.date,                       // 'YYYY-MM-DD'
+            startTime: data.startTime,             // 'HH:mm'
+            endTime: data.endTime,                 // 'HH:mm'
+            intervalMinutes: Number(data.intervalMinutes) || 60,
+            enabled: data.enabled !== false,
+            createdAt: new Date().toISOString()
+        };
+        app.alerts.push(alert);
+        saveAlertsToFirebase();
+        return alert;
+    }
+
+    function updateAlert(id, data) {
+        const alert = app.alerts.find(function(a) { return a.id === id; });
+        if (!alert) return null;
+        ['title', 'message', 'date', 'startTime', 'endTime'].forEach(function(k) {
+            if (data[k] !== undefined) alert[k] = (k === 'title' || k === 'message')
+                ? String(data[k]).trim() : data[k];
+        });
+        if (data.intervalMinutes !== undefined) alert.intervalMinutes = Number(data.intervalMinutes) || 60;
+        if (data.enabled !== undefined) alert.enabled = !!data.enabled;
+        saveAlertsToFirebase();
+        return alert;
+    }
+
+    function toggleAlert(id) {
+        const alert = app.alerts.find(function(a) { return a.id === id; });
+        if (!alert) return;
+        alert.enabled = !alert.enabled;
+        saveAlertsToFirebase();
+    }
+
+    function deleteAlert(id) {
+        app.alerts = app.alerts.filter(function(a) { return a.id !== id; });
+        saveAlertsToFirebase();
+    }
+
     // Dark mode functions
     function loadDarkMode() {
         const darkMode = localStorage.getItem('darkMode') === 'true';
@@ -2037,6 +2135,10 @@ $(document).ready(function() {
         getFilteredTransactions: getFilteredTransactions,
         initCharts: initCharts,
         toggleDarkMode: toggleDarkMode,
+        addAlert: addAlert,
+        updateAlert: updateAlert,
+        toggleAlert: toggleAlert,
+        deleteAlert: deleteAlert,
         login: login,
         signup: signup,
         logout: logout

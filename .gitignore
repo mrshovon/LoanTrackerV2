@@ -36,6 +36,18 @@ yarn-error.log*
 # vercel
 .vercel
 
+# capacitor
+/www
+/android
+/.gradle
+
+# release signing secrets — never commit
+/keystore
+android/keystore.properties
+
+# scratch APK copies at repo root (the committed release lives in releases/)
+/Arclend*.apk
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

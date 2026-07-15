@@ -219,6 +219,9 @@ $(document).ready(function() {
             case 'history':
                 loadHistory();
                 break;
+            case 'alerts':
+                loadAlerts();
+                break;
         }
     };
     
@@ -1653,6 +1656,322 @@ $(document).ready(function() {
     
     window.closeEditBankLoanModal = function() {
         $('#editBankLoanModal').addClass('hidden');
+    };
+
+    // ===================== Custom Alerts page =============================
+    // Freeform interval reminders: pick a day, an active window and an interval,
+    // and the phone posts a local notification at each step across that day.
+    window.__alertEditingId = null;
+
+    function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+    function todayStr() {
+        const d = new Date();
+        return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+    }
+
+    function intervalLabel(min) {
+        min = Number(min) || 0;
+        if (min >= 60 && min % 60 === 0) return 'Every ' + (min / 60) + ' hour' + (min > 60 ? 's' : '');
+        return 'Every ' + min + ' min';
+    }
+
+    function readAlertForm() {
+        return {
+            title: ($('#alertTitle').val() || '').trim(),
+            message: ($('#alertMessage').val() || '').trim(),
+            date: $('#alertDate').val(),
+            startTime: $('#alertStart').val(),
+            endTime: $('#alertEnd').val(),
+            intervalMinutes: parseInt($('#alertInterval').val(), 10) || 60
+        };
+    }
+
+    const INTERVAL_OPTIONS = [
+        { v: 15, l: 'Every 15 min' },
+        { v: 30, l: 'Every 30 min' },
+        { v: 60, l: 'Every 1 hour' },
+        { v: 120, l: 'Every 2 hours' },
+        { v: 180, l: 'Every 3 hours' },
+        { v: 240, l: 'Every 4 hours' },
+        { v: 360, l: 'Every 6 hours' }
+    ];
+
+    window.updateAlertPreview = function() {
+        const f = readAlertForm();
+        const eng = window.ArclendAlerts;
+        let n = 0;
+        if (eng && eng.totalCount) n = eng.totalCount(f);
+        const $p = $('#alertPreview');
+        if (!f.startTime || !f.endTime || n <= 0) {
+            $p.text('Set a valid time window to preview reminders.');
+        } else {
+            $p.text('≈ ' + n + ' reminder' + (n === 1 ? '' : 's') + ' on ' +
+                (f.date ? new Date(f.date + 'T00:00').toLocaleDateString() : 'that day') +
+                ' (' + f.startTime + '–' + f.endTime + ', ' + intervalLabel(f.intervalMinutes).toLowerCase() + ').');
+        }
+    };
+
+    window.submitAlertForm = function() {
+        const f = readAlertForm();
+        if (!f.title) { showToast('Please enter an alert title', 'error'); return; }
+        if (!f.date) { showToast('Please pick a date', 'error'); return; }
+        if (!f.startTime || !f.endTime) { showToast('Please set the active time window', 'error'); return; }
+
+        const s = f.startTime.split(':').map(Number);
+        const e = f.endTime.split(':').map(Number);
+        if ((e[0] * 60 + e[1]) <= (s[0] * 60 + s[1])) {
+            showToast('End time must be after start time', 'error');
+            return;
+        }
+        const eng = window.ArclendAlerts;
+        if (eng && eng.totalCount && eng.totalCount(f) <= 0) {
+            showToast('That window produces no reminders', 'error');
+            return;
+        }
+
+        if (window.__alertEditingId) {
+            window.appCore.updateAlert(window.__alertEditingId, f);
+            showToast('Alert updated', 'success');
+        } else {
+            window.appCore.addAlert(f);
+            showToast('Alert created', 'success');
+            // Prompt for notification permission on native at a natural moment.
+            if (eng && eng.requestPermission) eng.requestPermission();
+        }
+        window.__alertEditingId = null;
+        loadAlerts();
+    };
+
+    window.startEditAlert = function(id) {
+        window.__alertEditingId = id;
+        loadAlerts();
+        // Scroll the form into view for convenience.
+        const el = document.getElementById('alertFormCard');
+        if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+
+    window.cancelEditAlert = function() {
+        window.__alertEditingId = null;
+        loadAlerts();
+    };
+
+    window.toggleAlertEnabled = function(id) {
+        window.appCore.toggleAlert(id);
+    };
+
+    window.confirmDeleteAlert = function(id) {
+        showConfirmDialog('Delete this alert and cancel its reminders?', function() {
+            window.appCore.deleteAlert(id);
+            if (window.__alertEditingId === id) window.__alertEditingId = null;
+            showToast('Alert deleted', 'info');
+        });
+    };
+
+    window.loadAlerts = function() {
+        const alerts = (window.app && window.app.alerts) ? window.app.alerts.slice() : [];
+        const editing = window.__alertEditingId
+            ? alerts.find(function(a) { return a.id === window.__alertEditingId; })
+            : null;
+        const eng = window.ArclendAlerts;
+        const isNative = !!(eng && eng.isNative);
+
+        // Sort: soonest first, ended alerts last.
+        const now = Date.now();
+        const endMs = function(a) {
+            if (!a.date || !a.endTime) return 0;
+            const dp = a.date.split('-').map(Number);
+            const ep = a.endTime.split(':').map(Number);
+            return new Date(dp[0], dp[1] - 1, dp[2], ep[0], ep[1]).getTime();
+        };
+        alerts.sort(function(a, b) { return endMs(a) - endMs(b); });
+
+        const form = editing || {
+            title: '', message: '', date: todayStr(),
+            startTime: '09:00', endTime: '21:00', intervalMinutes: 120
+        };
+
+        const intervalOpts = INTERVAL_OPTIONS.map(function(o) {
+            return '<option value="' + o.v + '"' +
+                (Number(form.intervalMinutes) === o.v ? ' selected' : '') + '>' + o.l + '</option>';
+        }).join('');
+
+        const platformBanner = isNative ? '' : `
+            <div class="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 p-3 rounded-lg text-sm flex items-start gap-2">
+                <i data-lucide="info" class="w-4 h-4 mt-0.5 flex-shrink-0"></i>
+                <span>You can create and manage alerts here, but phone notifications only fire in the installed <strong>Arclend Android app</strong>. In a browser they won't ring.</span>
+            </div>`;
+
+        // Native notification status/controls — populated async by refreshAlertNotifStatus().
+        const notifCard = isNative ? '<div id="alertNotifCard"></div>' : '';
+
+        const inputCls = 'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500';
+
+        const formCard = `
+            <div id="alertFormCard" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white">${editing ? 'Edit alert' : 'New alert'}</h2>
+                    ${editing ? '<button class="text-sm text-gray-500 hover:text-gray-800 dark:hover:text-gray-200" onclick="cancelEditAlert()">Cancel</button>' : ''}
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
+                        <input id="alertTitle" type="text" maxlength="80" class="${inputCls}" placeholder="e.g. Pay Rahim 5000" value="${escapeHtml(form.title)}" oninput="updateAlertPreview()" />
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Message <span class="text-gray-400 font-normal">(optional)</span></label>
+                        <input id="alertMessage" type="text" maxlength="160" class="${inputCls}" placeholder="Extra detail shown in the notification" value="${escapeHtml(form.message)}" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
+                        <input id="alertDate" type="date" min="${todayStr()}" class="${inputCls}" value="${escapeHtml(form.date)}" onchange="updateAlertPreview()" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Interval</label>
+                        <select id="alertInterval" class="${inputCls}" onchange="updateAlertPreview()">${intervalOpts}</select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Active from</label>
+                        <input id="alertStart" type="time" class="${inputCls}" value="${escapeHtml(form.startTime)}" onchange="updateAlertPreview()" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Active until</label>
+                        <input id="alertEnd" type="time" class="${inputCls}" value="${escapeHtml(form.endTime)}" onchange="updateAlertPreview()" />
+                    </div>
+                </div>
+                <p id="alertPreview" class="text-sm text-gray-500 dark:text-gray-400"></p>
+                <div class="flex justify-end">
+                    <button class="btn bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2" onclick="submitAlertForm()">
+                        <i data-lucide="${editing ? 'save' : 'plus'}" class="w-4 h-4"></i>
+                        <span>${editing ? 'Save changes' : 'Create alert'}</span>
+                    </button>
+                </div>
+            </div>`;
+
+        const listItems = alerts.map(function(a) {
+            const ended = endMs(a) < now;
+            const remaining = (eng && eng.previewCount) ? eng.previewCount(a) : 0;
+            const dateLabel = a.date ? new Date(a.date + 'T00:00').toLocaleDateString() : '';
+            const statusPill = ended
+                ? '<span class="text-xs px-2 py-0.5 rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300">Ended</span>'
+                : (a.enabled === false
+                    ? '<span class="text-xs px-2 py-0.5 rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300">Off</span>'
+                    : '<span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">On</span>');
+            return `
+                <div class="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 ${ended ? 'opacity-60' : ''}">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <p class="font-semibold text-gray-900 dark:text-white truncate">${escapeHtml(a.title || 'Reminder')}</p>
+                                ${statusPill}
+                            </div>
+                            ${a.message ? `<p class="text-sm text-gray-600 dark:text-gray-400 mt-0.5">${escapeHtml(a.message)}</p>` : ''}
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                <i data-lucide="calendar" class="inline w-3.5 h-3.5 -mt-0.5"></i> ${escapeHtml(dateLabel)}
+                                &nbsp;·&nbsp; ${escapeHtml(a.startTime || '')}–${escapeHtml(a.endTime || '')}
+                                &nbsp;·&nbsp; ${intervalLabel(a.intervalMinutes)}
+                                ${!ended && a.enabled !== false ? `&nbsp;·&nbsp; ${remaining} left today` : ''}
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-1 flex-shrink-0">
+                            <button class="btn bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 rounded-md" title="${a.enabled === false ? 'Enable' : 'Disable'}" onclick="toggleAlertEnabled('${a.id}')">
+                                <i data-lucide="${a.enabled === false ? 'bell-off' : 'bell'}" class="w-4 h-4"></i>
+                            </button>
+                            <button class="btn bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 rounded-md" title="Edit" onclick="startEditAlert('${a.id}')">
+                                <i data-lucide="pencil" class="w-4 h-4"></i>
+                            </button>
+                            <button class="btn bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 px-2 py-1 rounded-md" title="Delete" onclick="confirmDeleteAlert('${a.id}')">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+        }).join('');
+
+        const listCard = `
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-3">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Your alerts</h2>
+                ${alerts.length ? listItems : '<p class="text-sm text-gray-500 dark:text-gray-400">No alerts yet. Create one above to get interval reminders on the day you choose.</p>'}
+            </div>`;
+
+        $('#content').html(`
+            <div class="space-y-6">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Alerts</h1>
+                    <p class="text-gray-500 dark:text-gray-400 mt-1">Get reminded at a set interval throughout a chosen day.</p>
+                </div>
+                ${platformBanner}
+                ${notifCard}
+                ${formCard}
+                ${listCard}
+            </div>
+        `);
+        lucide.createIcons();
+        updateAlertPreview();
+        if (isNative) refreshAlertNotifStatus();
+    };
+
+    // Fills the native notification status card: shows whether notifications are
+    // enabled, an Enable button when they aren't, and a Send-test button.
+    window.refreshAlertNotifStatus = function() {
+        const eng = window.ArclendAlerts;
+        const $card = $('#alertNotifCard');
+        if (!eng || !eng.getPermissionState || !$card.length) return;
+        eng.getPermissionState().then(function(state) {
+            const granted = state === 'granted';
+            const box = granted
+                ? `<div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4 rounded-lg">
+                     <div class="flex items-center justify-between gap-3 flex-wrap">
+                       <div class="flex items-center gap-2 text-green-800 dark:text-green-300">
+                         <i data-lucide="bell-ring" class="w-5 h-5"></i>
+                         <span class="font-medium">Notifications are on</span>
+                       </div>
+                       <button class="btn bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5" onclick="sendTestAlertNotification()">
+                         <i data-lucide="send" class="w-4 h-4"></i> Send test
+                       </button>
+                     </div>
+                     <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Reminders fire even when the app is closed. If they stop arriving, exclude Arclend from your phone's battery optimisation.</p>
+                   </div>`
+                : `<div class="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 p-4 rounded-lg">
+                     <div class="flex items-center gap-2 text-amber-800 dark:text-amber-200 mb-1">
+                       <i data-lucide="bell-off" class="w-5 h-5"></i>
+                       <span class="font-medium">Notifications are off</span>
+                     </div>
+                     <p class="text-sm text-amber-800 dark:text-amber-200 mb-3">Turn them on so your alerts can reach you${state === 'denied' ? '. If nothing happens, enable notifications for Arclend in your phone Settings → Apps → Arclend → Notifications.' : '.'}</p>
+                     <div class="flex gap-2 flex-wrap">
+                       <button class="btn bg-blue-600 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-1.5" onclick="enableAlertNotifications()">
+                         <i data-lucide="bell" class="w-4 h-4"></i> Enable notifications
+                       </button>
+                       <button class="btn bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg text-sm flex items-center gap-1.5" onclick="sendTestAlertNotification()">
+                         <i data-lucide="send" class="w-4 h-4"></i> Send test
+                       </button>
+                     </div>
+                   </div>`;
+            $card.html(box);
+            lucide.createIcons();
+        });
+    };
+
+    window.enableAlertNotifications = function() {
+        const eng = window.ArclendAlerts;
+        if (!eng) return;
+        eng.requestAndReconcile().then(function(granted) {
+            if (granted) showToast('Notifications enabled', 'success');
+            else showToast('Notifications are blocked — enable them in phone Settings', 'warning');
+            refreshAlertNotifStatus();
+        });
+    };
+
+    window.sendTestAlertNotification = function() {
+        const eng = window.ArclendAlerts;
+        if (!eng || !eng.sendTestNotification) return;
+        eng.sendTestNotification().then(function(res) {
+            if (res.ok) showToast('Test notification in ~5 seconds…', 'success');
+            else if (res.reason === 'denied') showToast('Allow notifications first', 'warning');
+            else if (res.reason === 'web') showToast('Only works in the Android app', 'info');
+            else showToast('Could not send test notification', 'error');
+            refreshAlertNotifStatus();
+        });
     };
 });
 
