@@ -982,11 +982,11 @@ $(document).ready(function() {
         showPaymentDialog(
             `Enter purchase amount for ${card.cardName}:`,
             maxPurchase,
-            function(purchaseAmount) {
+            function(purchaseAmount, remarks) {
                 // Update card
                 card.currentOutstanding += purchaseAmount;
                 card.availableBalance -= purchaseAmount;
-                
+
                 // Add transaction
                 const transaction = {
                     id: Date.now().toString(),
@@ -994,16 +994,18 @@ $(document).ready(function() {
                     amount: purchaseAmount,
                     category: 'credit',
                     description: `Purchase - ${card.cardName}`,
+                    remarks: remarks || '',
                     date: new Date().toISOString(),
                     loanId: card.id
                 };
                 app.transactions.push(transaction);
-                
+
                 saveLoansToFirebase();
                 saveTransactionsToFirebase();
                 navigateTo('credit');
                 showToast(`Purchase of ${formatCurrency(purchaseAmount)} recorded successfully`, 'success');
-            });
+            },
+            { heading: 'Add Purchase', amountLabel: 'Purchase Amount ($)', submitText: 'Add Purchase', showRemarks: true });
         }
 
             // Shops (credit balance with vendors) functions

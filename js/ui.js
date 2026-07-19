@@ -115,23 +115,31 @@ $(document).ready(function() {
     };
     
     // Modern Payment Dialog
-    window.showPaymentDialog = function(title, maxAmount, onConfirm) {
+    window.showPaymentDialog = function(title, maxAmount, onConfirm, options) {
+        options = options || {};
         $('#paymentModal #paymentAmount').val('');
         $('#paymentModal #paymentInfo').text(title);
+        // Reset labels every open so a prior purchase invocation doesn't leak into a later payment.
+        $('#paymentModalTitle').text(options.heading || 'Make Payment');
+        $('#paymentAmountLabel').text(options.amountLabel || 'Payment Amount ($)');
+        $('#submitPaymentBtn').text(options.submitText || 'Pay Now');
+        $('#paymentRemarks').val('');
+        $('#paymentRemarksWrap').toggleClass('hidden', !options.showRemarks);
         $('#paymentModal').removeClass('hidden');
-        
+
         $('#submitPaymentBtn').off('click').on('click', function() {
             const amount = parseFloat($('#paymentAmount').val());
             if (!amount || amount <= 0) {
-                showToast('Please enter a valid payment amount', 'error');
+                showToast('Please enter a valid amount', 'error');
                 return;
             }
             if (amount > maxAmount) {
-                showToast(`Maximum payment amount is ${formatCurrency(maxAmount)}`, 'error');
+                showToast(`Maximum amount is ${formatCurrency(maxAmount)}`, 'error');
                 return;
             }
+            const remarks = ($('#paymentRemarks').val() || '').trim();
             $('#paymentModal').addClass('hidden');
-            onConfirm(amount);
+            onConfirm(amount, remarks);
         });
     };
     
@@ -1604,6 +1612,7 @@ $(document).ready(function() {
                                     </div>
                                     <div>
                                         <p class="font-medium text-gray-900 dark:text-white">${t.description}</p>
+                                        ${t.remarks ? `<p class="text-sm text-gray-600 dark:text-gray-300 italic">${escapeHtml(t.remarks)}</p>` : ''}
                                         <p class="text-sm text-gray-500 dark:text-gray-400">${new Date(t.date).toLocaleDateString()} at ${new Date(t.date).toLocaleTimeString()}</p>
                                     </div>
                                 </div>
