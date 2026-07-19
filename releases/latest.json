@@ -1,7 +1,7 @@
 {
-  "versionCode": 4,
-  "versionName": "1.3",
-  "apkUrl": "https://github.com/mrshovon/LoanTrackerV2/raw/master/releases/Arclend.apk?v=4",
-  "notes": "• Credit card: 'Add Purchase' dialog now labeled correctly\n• Add optional Remarks to credit card purchases",
+  "versionCode": 5,
+  "versionName": "1.4",
+  "apkUrl": "https://github.com/mrshovon/LoanTrackerV2/raw/master/releases/Arclend.apk?v=5",
+  "notes": "• Fix double-counting: mark a duplicate account 'Exclude from totals' (edit a loan/card)",
   "mandatory": false
 }
