@@ -460,7 +460,7 @@ $(document).ready(function() {
                         <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow card-hover" data-search="${escapeHtml(loan.personName)}">
                             <div class="flex justify-between items-start mb-4">
                                 <div>
-                                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${loan.personName}</h3>
+                                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${loan.personName}${loan.excludeFromTotals ? ` <span class="text-xs align-middle px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">Excluded from totals</span>` : ''}</h3>
                                     <p class="text-sm text-gray-500 dark:text-gray-400">Created: ${new Date(loan.createdAt).toLocaleDateString()}</p>
                                 </div>
                                 <div class="flex space-x-2">
@@ -576,7 +576,7 @@ $(document).ready(function() {
                             <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow card-hover" data-search="${escapeHtml(card.cardName)}">
                                 <div class="flex justify-between items-start mb-4">
                                     <div>
-                                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${card.cardName}</h3>
+                                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${card.cardName}${card.excludeFromTotals ? ` <span class="text-xs align-middle px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">Excluded from totals</span>` : ''}</h3>
                                         <p class="text-sm text-gray-500 dark:text-gray-400">Created: ${new Date(card.createdAt).toLocaleDateString()}</p>
                                     </div>
                                     <div class="flex space-x-2">
@@ -1151,29 +1151,34 @@ $(document).ready(function() {
         shop: 'credit-balance'
     };
 
-    // Who the payment went to. Shop payments carry a free-text description (often
-    // just "paid"), so the name has to come from the shop record itself.
-    function debtPayeeName(t) {
+    // The loan/card/shop record a transaction belongs to (or undefined).
+    function debtEntity(t) {
         const loans = app.loans || {};
-        if (t.category === 'shop') {
-            const shop = (loans.shops || []).find(s => s.id === t.shopId);
-            return shop ? shop.name : '';
-        }
+        if (t.category === 'shop') return (loans.shops || []).find(s => s.id === t.shopId);
         const list = t.category === 'personal' ? loans.personal
             : t.category === 'credit' ? loans.credit
             : loans.bank;
-        const entity = (list || []).find(l => l.id === t.loanId);
+        return (list || []).find(l => l.id === t.loanId);
+    }
+
+    // Who the payment went to. Shop payments carry a free-text description (often
+    // just "paid"), so the name has to come from the shop record itself.
+    function debtPayeeName(t) {
+        const entity = debtEntity(t);
         if (!entity) return '';
-        return entity.personName || entity.cardName || entity.bankName || '';
+        return entity.name || entity.personName || entity.cardName || entity.bankName || '';
     }
 
     // Only 'payment' counts: a credit purchase and its later repayment are the same
-    // money, so counting 'withdrawal' too would double it.
+    // money, so counting 'withdrawal' too would double it. Accounts flagged
+    // excludeFromTotals (mirrors of another account) are skipped so a debt tracked
+    // in two places isn't counted twice.
     function getDebtPaymentItemsForMonth(monthKey) {
         return (app.transactions || [])
             .filter(t => t.type === 'payment'
                 && DEBT_SOURCE_LABEL[t.category]
-                && (t.date || '').slice(0, 7) === monthKey)
+                && (t.date || '').slice(0, 7) === monthKey
+                && !((debtEntity(t) || {}).excludeFromTotals))
             .map(t => ({
                 id: t.id,
                 type: 'expense',

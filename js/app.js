@@ -593,27 +593,27 @@ $(document).ready(function() {
     
     function calculatePersonalLoansTotal() {
         if (!app.loans || !app.loans.personal) return 0;
-        return app.loans.personal.reduce((sum, loan) => sum + (loan.outstandingBalance || 0), 0);
+        return app.loans.personal.filter(loan => !loan.excludeFromTotals).reduce((sum, loan) => sum + (loan.outstandingBalance || 0), 0);
     }
-    
+
     function calculatePersonalLoansPaid() {
         if (!app.loans || !app.loans.personal) return 0;
-        return app.loans.personal.reduce((sum, loan) => sum + (loan.totalPaid || 0), 0);
+        return app.loans.personal.filter(loan => !loan.excludeFromTotals).reduce((sum, loan) => sum + (loan.totalPaid || 0), 0);
     }
-    
+
     function calculateCreditCardsTotal() {
         if (!app.loans || !app.loans.credit) return 0;
-        return app.loans.credit.reduce((sum, card) => sum + (card.currentOutstanding || 0), 0);
+        return app.loans.credit.filter(card => !card.excludeFromTotals).reduce((sum, card) => sum + (card.currentOutstanding || 0), 0);
     }
-    
+
     function calculateCreditCardsLimit() {
         if (!app.loans || !app.loans.credit) return 0;
-        return app.loans.credit.reduce((sum, card) => sum + (card.totalCreditLimit || 0), 0);
+        return app.loans.credit.filter(card => !card.excludeFromTotals).reduce((sum, card) => sum + (card.totalCreditLimit || 0), 0);
     }
-    
+
     function calculateCreditCardsAvailable() {
         if (!app.loans || !app.loans.credit) return 0;
-        return app.loans.credit.reduce((sum, card) => sum + (card.availableBalance || 0), 0);
+        return app.loans.credit.filter(card => !card.excludeFromTotals).reduce((sum, card) => sum + (card.availableBalance || 0), 0);
     }
     
     function calculateBankLoansTotal() {
@@ -798,13 +798,14 @@ $(document).ready(function() {
         $('#editPersonName').val(loan.personName);
         $('#editTotalLoanAmount').val(loan.totalLoanAmount);
         $('#editAmountPaid').val(loan.totalPaid);
-        
+        $('#editPersonalLoanExclude').prop('checked', !!loan.excludeFromTotals);
+
         // Show modal
         $('#editPersonalLoanModal').removeClass('hidden');
         lucide.createIcons();
     }
     
-    function updatePersonalLoan(id, personName, totalLoanAmount, totalPaid) {
+    function updatePersonalLoan(id, personName, totalLoanAmount, totalPaid, excludeFromTotals) {
         const loan = app.loans.personal.find(l => l.id === id);
         if (!loan) return;
 
@@ -812,6 +813,7 @@ $(document).ready(function() {
         loan.totalLoanAmount = totalLoanAmount;
         loan.totalPaid = totalPaid;
         loan.outstandingBalance = Math.max(0, totalLoanAmount - totalPaid);
+        loan.excludeFromTotals = !!excludeFromTotals;
 
         saveLoansToFirebase();
         navigateTo('personal');
@@ -907,13 +909,14 @@ $(document).ready(function() {
         $('#editCardName').val(card.cardName);
         $('#editCreditLimit').val(card.totalCreditLimit);
         $('#editCurrentOutstanding').val(card.currentOutstanding);
-        
+        $('#editCreditCardExclude').prop('checked', !!card.excludeFromTotals);
+
         // Show modal
         $('#editCreditCardModal').removeClass('hidden');
         lucide.createIcons();
     }
 
-    function updateCreditCard(id, cardName, totalCreditLimit, currentOutstanding) {
+    function updateCreditCard(id, cardName, totalCreditLimit, currentOutstanding, excludeFromTotals) {
         const card = app.loans.credit.find(c => c.id === id);
         if (!card) return;
 
@@ -921,6 +924,7 @@ $(document).ready(function() {
         card.totalCreditLimit = totalCreditLimit;
         card.currentOutstanding = currentOutstanding;
         card.availableBalance = Math.max(0, totalCreditLimit - currentOutstanding);
+        card.excludeFromTotals = !!excludeFromTotals;
 
         saveLoansToFirebase();
         navigateTo('credit');
@@ -1637,13 +1641,14 @@ $(document).ready(function() {
             const personName = $('#editPersonName').val();
             const totalLoanAmount = parseFloat($('#editTotalLoanAmount').val());
             const totalPaid = parseFloat($('#editAmountPaid').val());
+            const excludeFromTotals = $('#editPersonalLoanExclude').is(':checked');
 
             if (!loanId || !personName || isNaN(totalLoanAmount) || isNaN(totalPaid)) {
                 showToast('Please fill in all fields correctly', 'error');
                 return;
             }
 
-            updatePersonalLoan(loanId, personName, totalLoanAmount, totalPaid);
+            updatePersonalLoan(loanId, personName, totalLoanAmount, totalPaid, excludeFromTotals);
             closeEditPersonalLoanModal();
         });
 
@@ -1654,13 +1659,14 @@ $(document).ready(function() {
             const cardName = $('#editCardName').val();
             const totalCreditLimit = parseFloat($('#editCreditLimit').val());
             const currentOutstanding = parseFloat($('#editCurrentOutstanding').val());
+            const excludeFromTotals = $('#editCreditCardExclude').is(':checked');
 
             if (!cardId || !cardName || isNaN(totalCreditLimit) || isNaN(currentOutstanding)) {
                 showToast('Please fill in all fields correctly', 'error');
                 return;
             }
 
-            updateCreditCard(cardId, cardName, totalCreditLimit, currentOutstanding);
+            updateCreditCard(cardId, cardName, totalCreditLimit, currentOutstanding, excludeFromTotals);
             closeEditCreditCardModal();
         });
 
