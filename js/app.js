@@ -618,22 +618,22 @@ $(document).ready(function() {
     
     function calculateBankLoansTotal() {
         if (!app.loans || !app.loans.bank) return 0;
-        return app.loans.bank.reduce((sum, loan) => sum + (loan.currentOutstanding || 0), 0);
+        return app.loans.bank.filter(loan => !loan.excludeFromTotals).reduce((sum, loan) => sum + (loan.currentOutstanding || 0), 0);
     }
-    
+
     function calculateBankLoansPrincipal() {
         if (!app.loans || !app.loans.bank) return 0;
-        return app.loans.bank.reduce((sum, loan) => sum + (loan.principalAmount || 0), 0);
+        return app.loans.bank.filter(loan => !loan.excludeFromTotals).reduce((sum, loan) => sum + (loan.principalAmount || 0), 0);
     }
-    
+
     function calculateBankLoansPaid() {
         if (!app.loans || !app.loans.bank) return 0;
-        return app.loans.bank.reduce((sum, loan) => sum + (loan.totalPaid || 0), 0);
+        return app.loans.bank.filter(loan => !loan.excludeFromTotals).reduce((sum, loan) => sum + (loan.totalPaid || 0), 0);
     }
-    
+
     function calculateBankLoansEMI() {
         if (!app.loans || !app.loans.bank) return 0;
-        return app.loans.bank.reduce((sum, loan) => {
+        return app.loans.bank.filter(loan => !loan.excludeFromTotals).reduce((sum, loan) => {
             const emi = calculateEMI(loan.principalAmount || 0, loan.annualInterestRate || 0, loan.tenureMonths || 0, loan.interestMethod || 'reducing');
             return sum + ((loan.monthsRemaining || 0) > 0 ? emi : 0);
         }, 0);
@@ -1331,13 +1331,14 @@ $(document).ready(function() {
         $('#editInterestMethod').val(loan.interestMethod || 'reducing');
         $('#editTenureMonths').val(loan.tenureMonths);
         $('#editTotalPaid').val(loan.totalPaid);
-        
+        $('#editBankLoanExclude').prop('checked', !!loan.excludeFromTotals);
+
         // Show modal
         $('#editBankLoanModal').removeClass('hidden');
         lucide.createIcons();
     }
 
-    function updateBankLoan(id, bankName, principalAmount, annualInterestRate, tenureMonths, totalPaid, interestMethod) {
+    function updateBankLoan(id, bankName, principalAmount, annualInterestRate, tenureMonths, totalPaid, interestMethod, excludeFromTotals) {
         const loan = app.loans.bank.find(l => l.id === id);
         if (!loan) return;
 
@@ -1349,6 +1350,7 @@ $(document).ready(function() {
         loan.tenureMonths = tenureMonths;
         loan.interestMethod = interestMethod;
         loan.totalPaid = totalPaid;
+        loan.excludeFromTotals = !!excludeFromTotals;
 
         const emi = calculateEMI(principalAmount, annualInterestRate, tenureMonths, interestMethod);
         const monthsPaid = emi > 0 ? Math.floor(totalPaid / emi) : 0;
@@ -1680,13 +1682,14 @@ $(document).ready(function() {
             const tenureMonths = parseInt($('#editTenureMonths').val());
             const interestMethod = $('#editInterestMethod').val() || 'reducing';
             const totalPaid = parseFloat($('#editTotalPaid').val());
+            const excludeFromTotals = $('#editBankLoanExclude').is(':checked');
 
             if (!loanId || !bankName || isNaN(principalAmount) || isNaN(annualInterestRate) || isNaN(tenureMonths) || isNaN(totalPaid)) {
                 showToast('Please fill in all fields correctly', 'error');
                 return;
             }
 
-            updateBankLoan(loanId, bankName, principalAmount, annualInterestRate, tenureMonths, totalPaid, interestMethod);
+            updateBankLoan(loanId, bankName, principalAmount, annualInterestRate, tenureMonths, totalPaid, interestMethod, excludeFromTotals);
             closeEditBankLoanModal();
         });
         

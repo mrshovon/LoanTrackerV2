@@ -697,7 +697,7 @@ $(document).ready(function() {
                             <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow card-hover" data-search="${escapeHtml(loan.bankName)}">
                                 <div class="flex justify-between items-start mb-4">
                                     <div>
-                                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${loan.bankName}</h3>
+                                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${loan.bankName}${loan.excludeFromTotals ? ` <span class="text-xs align-middle px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">Excluded from totals</span>` : ''}</h3>
                                         <p class="text-sm text-gray-500 dark:text-gray-400">Started: ${new Date(loan.startDate).toLocaleDateString()}</p>
                                     </div>
                                     <div class="flex space-x-2">
