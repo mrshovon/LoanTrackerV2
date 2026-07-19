@@ -1,5 +1,11 @@
 {
   "appId": "com.arclend.app",
   "appName": "Arclend",
-  "webDir": "www"
+  "webDir": "www",
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_arclend",
+      "iconColor": "#14664E"
+    }
+  }
 }
