@@ -1,7 +1,7 @@
 {
-  "versionCode": 5,
-  "versionName": "1.4",
-  "apkUrl": "https://github.com/mrshovon/LoanTrackerV2/raw/master/releases/Arclend.apk?v=5",
-  "notes": "• Fix double-counting: mark a duplicate account 'Exclude from totals' (edit a loan/card)",
+  "versionCode": 6,
+  "versionName": "1.5",
+  "apkUrl": "https://github.com/mrshovon/LoanTrackerV2/raw/master/releases/Arclend.apk?v=6",
+  "notes": "• Bank loans can now be marked 'Exclude from totals' (for a credit-card EMI tracked as a mirror)",
   "mandatory": false
 }
