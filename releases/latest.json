@@ -1,7 +1,7 @@
 {
-  "versionCode": 7,
-  "versionName": "1.6",
-  "apkUrl": "https://github.com/mrshovon/LoanTrackerV2/raw/master/releases/Arclend.apk?v=7",
-  "notes": "• Credit cards can go over limit: purchases beyond the limit are allowed and Available shows a negative balance",
+  "versionCode": 8,
+  "versionName": "1.7",
+  "apkUrl": "https://github.com/mrshovon/LoanTrackerV2/raw/master/releases/Arclend.apk?v=8",
+  "notes": "• New Arclend logo and app icon",
   "mandatory": false
 }
