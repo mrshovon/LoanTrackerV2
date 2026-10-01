@@ -65,7 +65,7 @@ function welcomeHtml(name, appUrl) {
     const safeName = escapeHtml(name);
     const safeUrl = escapeHtml(appUrl);
     // Email clients cannot render SVG, and images need an absolute URL.
-    const logoUrl = escapeHtml(String(appUrl).replace(/\/+$/, '') + '/public/brandImages/arclend-logo.png');
+    const logoUrl = escapeHtml(String(appUrl).replace(/\/+$/, '') + '/public/brandImages/arclend-logo-full.png');
     return `<!doctype html>
 <html>
   <body style="margin:0;padding:0;background-color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
@@ -75,7 +75,7 @@ function welcomeHtml(name, appUrl) {
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
             <tr>
               <td align="center" style="padding:32px 32px 8px;">
-                <img src="${logoUrl}" alt="Arclend" width="240" height="83" style="display:block;width:240px;height:auto;border:0;" />
+                <img src="${logoUrl}" alt="Arclend" width="200" height="200" style="display:block;width:200px;height:auto;border:0;" />
               </td>
             </tr>
             <tr>
