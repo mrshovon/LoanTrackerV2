@@ -71,6 +71,7 @@ $(document).ready(function() {
 
     function formatCurrency(amount) {
         const symbol = getCurrencySymbol();
+        if (amount < 0) return `-${symbol}${Math.abs(amount).toLocaleString()}`;
         return `${symbol}${amount.toLocaleString()}`;
     }
 
@@ -923,7 +924,8 @@ $(document).ready(function() {
         card.cardName = cardName;
         card.totalCreditLimit = totalCreditLimit;
         card.currentOutstanding = currentOutstanding;
-        card.availableBalance = Math.max(0, totalCreditLimit - currentOutstanding);
+        // Can go negative when the card is over its limit.
+        card.availableBalance = totalCreditLimit - currentOutstanding;
         card.excludeFromTotals = !!excludeFromTotals;
 
         saveLoansToFirebase();
@@ -982,7 +984,8 @@ $(document).ready(function() {
         const card = app.loans.credit.find(c => c.id === id);
         if (!card) return;
         
-        const maxPurchase = card.availableBalance;
+        // No cap: purchases beyond the limit push Available below zero.
+        const maxPurchase = Infinity;
         showPaymentDialog(
             `Enter purchase amount for ${card.cardName}:`,
             maxPurchase,

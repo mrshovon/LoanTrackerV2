@@ -561,7 +561,7 @@ $(document).ready(function() {
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Available Credit</p>
-                        <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">${formatCurrency(calculateCreditCardsAvailable())}</p>
+                        <p class="text-2xl font-bold ${calculateCreditCardsAvailable() < 0 ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}">${formatCurrency(calculateCreditCardsAvailable())}</p>
                     </div>
                 </div>
                 
@@ -603,7 +603,7 @@ $(document).ready(function() {
                                     </div>
                                     <div>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">Available</p>
-                                        <p class="text-lg font-semibold text-green-600 dark:text-green-400">${formatCurrency(card.availableBalance)}</p>
+                                        <p class="text-lg font-semibold ${card.availableBalance < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}">${formatCurrency(card.availableBalance)}${card.availableBalance < 0 ? ` <span class="text-xs align-middle px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300">Over limit</span>` : ''}</p>
                                     </div>
                                     <div>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">Min Payment</p>
@@ -617,7 +617,7 @@ $(document).ready(function() {
                                         <span class="${utilization > 70 ? 'text-red-600' : utilization > 50 ? 'text-orange-600' : 'text-green-600'}">${utilization.toFixed(1)}%</span>
                                     </div>
                                     <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                        <div class="${utilization > 70 ? 'bg-red-600' : utilization > 50 ? 'bg-orange-600' : 'bg-green-600'} h-2 rounded-full progress-bar" style="width: ${utilization}%"></div>
+                                        <div class="${utilization > 70 ? 'bg-red-600' : utilization > 50 ? 'bg-orange-600' : 'bg-green-600'} h-2 rounded-full progress-bar" style="width: ${Math.min(utilization, 100)}%"></div>
                                     </div>
                                 </div>
                                 
